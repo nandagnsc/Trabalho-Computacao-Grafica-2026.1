@@ -32,6 +32,7 @@ container.appendChild( stats.dom );
 
 var renderer = initRenderer();   // Função de visualização em util/utils
   renderer.setClearColor("pink"); // Define a cor de fundo do renderizador
+  renderer.domElement.style.cursor = 'none';
 let camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000); // Cria a câmera
   camera.position.set(0.0, 0.0, 0.0); // Define a posição inicial da câmera
   camera.up.set( 0, 1, 0 ); // Define a direção "para cima" da câmera
@@ -59,21 +60,49 @@ const limiarParadaRotacao= 1; // Define o limiar de parada para a rotação do a
 const velocidadeInclinacao = 0.3; // Define a velocidade de inclinação do avião,  para controlar a intensidade do efeito de inclinação do avião com base na posição do mouse. Um valor mais alto resultará em uma inclinação mais rápida e intensa, enquanto um valor mais baixo resultará em uma inclinação mais suave e lenta.
 
 
-aviao.position.set(0, 0, -30);
+aviao.position.set(0, 0, -25);
 aviao.rotateY(Math.PI/2); // Gira o avião para que ele ltado para a direção correta (para frente)
 cameraBox.add(aviaoContainer); // Adiciona o avião à cena
 
 scene.fog = new THREE.Fog(new THREE.Color("pink"), 0.1, 200); // Adiciona neblina à cena para criar um efeito de profundidade, usando a mesma cor do fundo para que os objetos desapareçam gradualmente à medida que se afastam da câmera
 
 var target = new THREE.Vector3(0, 0, 0); // Variável para armazenar a posição alvo para a câmera, que será atualizada com base na posição do mouse
+let simulaPausada = false;
 
 window.addEventListener('mousemove', (event) => { // Executa o movimento do mouse para atualizar a posição alvo da câmera
-        let x = (event.clientX / window.innerWidth) * 2 - 1; // Normaliza a posição do mouse no eixo X para o intervalo [-1, 1]
-        let y = (event.clientY / window.innerHeight) * 2 - 1; // Normaliza a posição do mouse no eixo Y para o intervalo [-1, 1]
+  if (simulaPausada) { //ve se a simulação ta pausada, e se estiver, a função retorna sem atualizar a posição alvo da câmera, permitindo que o usuário veja a cena congelada enquanto a simulação está pausada.
+    return;
+  }
+  let x = (event.clientX / window.innerWidth) * 2 - 1; // Normaliza a posição do mouse no eixo X para o intervalo [-1, 1]
+  let y = (event.clientY / window.innerHeight) * 2 - 1; // Normaliza a posição do mouse no eixo Y para o intervalo [-1, 1]
 
-        target.x = x * 20; // Atualiza a posição alvo da câmera no eixo X com base na posição do mouse, multiplicando por 20 para ampliar o movimento
-        target.y = -y * 10; // Atualiza a posição alvo da câmera no eixo Y  com base na posição do mouse, multiplicando por -20 para ampliar o movimento e inverter a direção
-    });
+  target.x = x * 20; // Atualiza a posição alvo da câmera no eixo X com base na posição do mouse, multiplicando por 20 para ampliar o movimento
+  target.y = -y * 10; // Atualiza a posição alvo da câmera no eixo Y  com base na posição do mouse, multiplicando por -20 para ampliar o movimento e inverter a direção
+});
+
+function pausarSimulacao() { // Função para pausar a simulação, que pode ser chamada quando o usuário aperta esc 
+  simulaPausada = true; //indica que esta pausada
+  renderer.domElement.style.cursor = 'default'; //como esta pausada, mostrar o cursor para o usuario
+}
+
+function retomarSimulacao() {
+  if (!simulaPausada) { // Verifica se a simulação já está em execução para evitar retomar desnecessariamente
+    return; // Se a simulação já estiver em execução, a função retorna sem fazer nada
+  }
+
+  simulaPausada = false; // Indica que a simulação foi retomada
+  renderer.domElement.style.cursor = 'none'; // Esconde o cursor novamente
+}
+
+window.addEventListener('keydown', (event) => { //ao pressionar a tecla esc, pausa a simulação
+  if (event.key === 'Escape') {
+    pausarSimulacao();
+  }
+});
+
+renderer.domElement.addEventListener('click', () => { //ao clicar, retorna a simulação
+  retomarSimulacao();
+});
 
 var infoBox = new SecondaryBox(""); // Cria uma caixa de informações para exibir instruções ou detalhes sobre o controle
 
@@ -89,13 +118,19 @@ render(); // Inicia o loop de renderização para atualizar a cena continuamente
 
 function buildInterface() {
   var gui = new GUI();
-  gui.add(scene.fog, 'far', 60, 200)
+  gui.add(scene.fog, 'far', 60, 300)
     .name("Fog Far");
 }
 
 function render() // Função de renderização que é chamada a cada frame para atualizar a cena
 {
   stats.update();
+
+  if (simulaPausada) { // Verifica se a simulação está pausada, e se estiver, renderiza a cena atual sem atualizar as posições ou movimentos dos objetos, permitindo que o usuário veja a cena congelada enquanto a simulação está pausada.
+    renderer.render(scene, camera); 
+    requestAnimationFrame(render);
+    return;
+  }
   
   let limite = 50; // Define um limite para o movimento da câmera, para evitar que ela se mova muito longe do centro da cena  
   let tamanho = 100; // Define o tamanho do plano de movimento da câmera, que pode ser usado para calcular os limites do movimento com base na posição do mouse
@@ -113,8 +148,8 @@ function render() // Função de renderização que é chamada a cada frame para
     if (c.position.z > cameraBox.position.z + limite) { // Verifica se o cenário está dentro do limite de movimento da câmera, comparando a posição do cenário com a posição da câmera e o limite definido
       // let menorZ = Math.min(...cenarios.map(obj => obj.position.z)); // Encontra a menor posição Z entre os cenários para determinar onde reposicionar o cenário que saiu do limite}
       c.position.z -= tamanho * cenarios.length; // Reposiciona o cenário para a frente da cena, usando o menor Z encontrado e o tamanho do plano de movimento para garantir que ele apareça à frente dos outros cenários
-      }
-    });
+    }
+  });
 
   aviaoContainer.position.x += (target.x - aviaoContainer.position.x) * 0.05; // Atualiza a posição da câmera no eixo X para se aproximar da posição alvo, usando uma interpolação suave multiplicada por 0.05 para controlar a velocidade do movimento
   cameraBox.position.z -= 0.5; // Atualiza a posição da câmera no eixo Z para se aproximar da posição alvo, usando uma interpolação suave multiplicada por 0.05 para controlar a velocidade do movimento

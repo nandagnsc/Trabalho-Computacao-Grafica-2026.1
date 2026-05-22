@@ -32,7 +32,7 @@ container.appendChild( stats.dom );
 
 var renderer = initRenderer();   // Função de visualização em util/utils
   renderer.setClearColor("pink"); // Define a cor de fundo do renderizador
-  renderer.domElement.style.cursor = 'none';
+  // renderer.domElement.style.cursor = 'none';
 let camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000); // Cria a câmera
   camera.position.set(0.0, 0.0, 0.0); // Define a posição inicial da câmera
   camera.up.set( 0, 1, 0 ); // Define a direção "para cima" da câmera
@@ -42,6 +42,52 @@ window.addEventListener( 'resize', function(){onWindowResize(camera, renderer)},
 let cameraBox = new THREE.Object3D();
 cameraBox.add(camera); // Adiciona a câmera a um objeto vazio (cameraBox) para facilitar o controle do movimento da câmera
 scene.add(cameraBox); // Adiciona o cameraBox à cena
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+// 1. Criar o Plano Invisível à frente
+// Ele fica dentro do cameraBox para acompanhar a câmera no eixo Z
+const planoInvisivelGeo = new THREE.PlaneGeometry(80, 60); // Tamanho da área de movimento
+const planoInvisivelMat = new THREE.MeshBasicMaterial({ visible: false }); // Fica invisível
+const planoInvisivel = new THREE.Mesh(planoInvisivelGeo, planoInvisivelMat);
+// Posicionado em Z = -35 (um pouco à frente do avião que está em Z = -25)
+planoInvisivel.position.set(0, 0, -35); 
+cameraBox.add(planoInvisivel);
+
+// 2. Criar o Objeto da Mira (Target)
+// Vamos criar um anel simples em formato de mira usando RingGeometry
+const mira = new THREE.Object3D(); // Cria um objeto vazio para conter a mira, permitindo que a mira seja controlada como um grupo, facilitando a aplicação de transformações como movimento e rotação à mira como um todo, sem afetar diretamente a posição ou rotação individual dos componentes da mira.
+const miraMat = new THREE.MeshBasicMaterial({ color: 'red', side: THREE.DoubleSide, depthTest: false });
+const miraGeo1 = new THREE.RingGeometry(0.3, 0.4, 16);
+const miraMesh1 = new THREE.Mesh(miraGeo1, miraMat);
+miraMesh1.renderOrder = 1; // Garante que a mira seja renderizada por cima de outros objetos, evitando que ela seja ocultada por outros elementos da cena, especialmente quando a mira estiver muito próxima de outros objetos ou do plano invisível. Isso é importante para manter a visibilidade da mira e garantir que ela seja claramente visível para o usuário durante a interação com a cena.
+
+const miraGeo2 = new THREE.PlaneGeometry(0.1, 0.3);
+const miraMesh2 = new THREE.Mesh(miraGeo2, miraMat);
+miraMesh2.renderOrder = 1; // Garante que o segundo anel da mira seja renderizado por cima de outros objetos
+miraMesh2.position.set(0, 0.45, 0); // Posiciona o segundo anel da mira um pouco acima do primeiro para criar um formato de mira mais completo
+const miraMesh3 = new THREE.Mesh(miraGeo2, miraMat);
+miraMesh3.renderOrder = 1; // Garante que o terceiro anel da mira seja renderizado por cima de outros objetos
+miraMesh3.position.set(0, -0.45, 0); // Posiciona o terceiro anel da mira um pouco abaixo do primeiro para criar um formato de mira mais completo
+
+const miraGeo4 = new THREE.PlaneGeometry(0.3, 0.1);
+const miraMesh4 = new THREE.Mesh(miraGeo4, miraMat);
+miraMesh4.renderOrder = 1; // Garante que o quarto anel da mira seja renderizado por cima de outros objetos
+miraMesh4.position.set(0.45, 0, 0); // Posiciona o quarto anel da mira um pouco à direita do primeiro para criar um formato de mira mais completo
+const miraMesh5 = new THREE.Mesh(miraGeo4, miraMat);
+miraMesh5.renderOrder = 1; // Garante que o quinto anel da mira seja renderizado por cima de outros objetos
+miraMesh5.position.set(-0.45, 0, 0); // Posiciona o quinto anel da mira um pouco à esquerda do primeiro para criar um formato de mira mais completo
+
+
+mira.add(miraMesh1); // Adiciona o primeiro anel da mira ao objeto da mira
+mira.add(miraMesh2); // Adiciona o segundo anel da mira ao objeto da mira
+mira.add(miraMesh3); // Adiciona o terceiro anel da mira ao objeto da mira
+mira.add(miraMesh4); // Adiciona o quarto anel da mira ao objeto da mira
+mira.add(miraMesh5); // Adiciona o quinto anel da mira ao objeto da mira
+// A mira precisa ter a mesma coordenada Z do plano invisível
+mira.position.set(0, 0, -35);
+cameraBox.add(mira);
 
 /*let cenarios = []; // Cria um array para armazenar os cenários, embora neste código específico ele não seja utilizado posteriormente
 const estacoes = ['verao', 'outono', 'inverno', 'primavera']; // Define um array com os nomes das estações do ano, que podem ser usados para criar diferentes tipos de cenários usando a função criaCenario, embora neste código específico eles não sejam utilizados posteriormente
@@ -87,16 +133,19 @@ window.addEventListener('mousemove', (event) => { // Executa o movimento do mous
   if (simulaPausada) { //ve se a simulação ta pausada, e se estiver, a função retorna sem atualizar a posição alvo da câmera, permitindo que o usuário veja a cena congelada enquanto a simulação está pausada.
     return;
   }
-  let x = (event.clientX / window.innerWidth) * 2 - 1; // Normaliza a posição do mouse no eixo X para o intervalo [-1, 1]
-  let y = (event.clientY / window.innerHeight) * 2 - 1; // Normaliza a posição do mouse no eixo Y para o intervalo [-1, 1]
+  
+  // Garante que o cursor do mouse permaneça oculto durante o jogo
+  renderer.domElement.style.cursor = 'none';
 
-  target.x = x * 20; // Atualiza a posição alvo da câmera no eixo X com base na posição do mouse, multiplicando por 20 para ampliar o movimento
-  target.y = -y * 10; // Atualiza a posição alvo da câmera no eixo Y  com base na posição do mouse, multiplicando por -20 para ampliar o movimento e inverter a direção
+  // Normaliza as coordenadas do mouse para o Raycaster
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 });
 
 function pausarSimulacao() { // Função para pausar a simulação, que pode ser chamada quando o usuário aperta esc 
   simulaPausada = true; //indica que esta pausada
   renderer.domElement.style.cursor = 'default'; //como esta pausada, mostrar o cursor para o usuario
+  mira.visible = false; // Esconde a mira quando a simulação estiver pausada, para evitar que ela fique visível enquanto o usuário interage com a cena ou visualiza a cena congelada. Isso pode ajudar a melhorar a experiência do usuário e evitar distrações visuais durante a pausa da simulação.
 }
 
 function retomarSimulacao() {
@@ -106,6 +155,7 @@ function retomarSimulacao() {
 
   simulaPausada = false; // Indica que a simulação foi retomada
   renderer.domElement.style.cursor = 'none'; // Esconde o cursor novamente
+  mira.visible = true; // Mostra a mira quando a simulação estiver em execução
 }
 
 window.addEventListener('keydown', (event) => { //ao pressionar a tecla esc, pausa a simulação
@@ -144,6 +194,24 @@ function render() // Função de renderização que é chamada a cada frame para
     renderer.render(scene, camera); 
     requestAnimationFrame(render);
     return;
+  }
+ 
+  raycaster.setFromCamera(mouse, camera); // Atualiza raycaster com a posição do mouse e a câmera para calcular as interseções com o plano invisível, permitindo que a posição alvo da câmera seja atualizada com base na posição do mouse na cena. Isso é essencial para criar a interação entre o movimento do mouse e o controle da câmera, permitindo que o usuário mova a câmera de forma intuitiva usando o mouse.
+    
+  const intersecoes = raycaster.intersectObject(planoInvisivel); // Calcula as interseções com o plano invisível
+
+  if (intersecoes.length > 0) {    
+    let pontoIntersecao = intersecoes[0].point; // Ponto onde o mouse está tocando no plano invisível
+    
+    let pontoLocal = cameraBox.worldToLocal(pontoIntersecao.clone()); // Converte o ponto global para o espaço local do cameraBox
+
+    // A mira (target) segue exatamente a posição do mouse no plano invisível
+    mira.position.x = pontoLocal.x;
+    mira.position.y = pontoLocal.y;
+
+    // Atualizamos a variável target antiga para o avião seguir a mira suavemente
+    target.x = pontoLocal.x;
+    target.y = pontoLocal.y;
   }
   
   let limite = 50; // Define um limite para o movimento da câmera, para evitar que ela se mova muito longe do centro da cena  

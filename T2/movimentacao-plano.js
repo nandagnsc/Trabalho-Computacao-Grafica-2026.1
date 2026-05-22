@@ -199,19 +199,26 @@ function render() // Função de renderização que é chamada a cada frame para
   raycaster.setFromCamera(mouse, camera); // Atualiza raycaster com a posição do mouse e a câmera para calcular as interseções com o plano invisível, permitindo que a posição alvo da câmera seja atualizada com base na posição do mouse na cena. Isso é essencial para criar a interação entre o movimento do mouse e o controle da câmera, permitindo que o usuário mova a câmera de forma intuitiva usando o mouse.
     
   const intersecoes = raycaster.intersectObject(planoInvisivel); // Calcula as interseções com o plano invisível
+  
+  const limiteX = 22; // Limite para esquerda (-) e direita (+)
+  const limiteY = 12;  // Limite para cima
 
   if (intersecoes.length > 0) {    
     let pontoIntersecao = intersecoes[0].point; // Ponto onde o mouse está tocando no plano invisível
     
     let pontoLocal = cameraBox.worldToLocal(pontoIntersecao.clone()); // Converte o ponto global para o espaço local do cameraBox
 
+    // Trava os valores de X e Y dentro dos limites estabelecidos
+    let xTravado = THREE.MathUtils.clamp(pontoLocal.x, - limiteX, limiteX);
+    let yTravado = THREE.MathUtils.clamp(pontoLocal.y, - limiteY, limiteY);
+
     // A mira (target) segue exatamente a posição do mouse no plano invisível
-    mira.position.x = pontoLocal.x;
-    mira.position.y = pontoLocal.y;
+    mira.position.x = xTravado;
+    mira.position.y = yTravado;
 
     // Atualizamos a variável target antiga para o avião seguir a mira suavemente
-    target.x = pontoLocal.x;
-    target.y = pontoLocal.y;
+    target.x = xTravado;
+    target.y = yTravado;
   }
   
   let limite = 50; // Define um limite para o movimento da câmera, para evitar que ela se mova muito longe do centro da cena  

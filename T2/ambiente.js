@@ -187,8 +187,10 @@ function iniciaPosicoes() {
 export function criaCenarioVerao(x, y, z)
 {
   let ambiente = new THREE.Object3D();
-  let plane = createGroundPlaneWired(350, 100, 35, 10, 3, 'green', 'darkgreen');
+  let plane = createGroundPlaneWired(1000, 400, 100, 100, 3, 'green', 'darkgreen'); //Adiciona mais seguimentos ao plano
   ambiente.add(plane);
+
+  let terrenoMesh = plane.children[0] ? plane.children[0] : plane; //Guarda malha (mesh) do plano para adicionar a textura
 
   const { posicoesX, posicoesZ } = iniciaPosicoes();
   
@@ -205,7 +207,10 @@ export function criaCenarioVerao(x, y, z)
   
   ambiente.position.set(x, y, z);
 
-  return ambiente;
+  return {
+    ambiente: ambiente,
+    terrenoMesh: terrenoMesh    
+  };
 }
 
 export function criaCenarioInverno(x, y, z)
@@ -290,10 +295,10 @@ export function criaCenario(x, y, z, tipo = 'verao') {
     if (tipo === 'verao') {
       return criaCenarioVerao(x, y, z);
     } else if (tipo === 'inverno') {
-      return criaCenarioInverno(x, y, z);
+      return { ambiente: criaCenarioInverno(x, y, z), terrenoMesh: null };
     } else if (tipo === 'outono') {
-      return criaCenarioOutono(x, y, z);
+      return { ambiente: criaCenarioOutono(x, y, z), terrenoMesh: null };
     } else if (tipo === 'primavera') {
-      return criaCenarioPrimavera(x, y, z);
+      return { ambiente: criaCenarioPrimavera(x, y, z), terrenoMesh: null };
     }
 }

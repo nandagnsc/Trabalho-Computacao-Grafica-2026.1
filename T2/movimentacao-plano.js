@@ -43,13 +43,27 @@ let cameraBox = new THREE.Object3D();
 cameraBox.add(camera); // Adiciona a câmera a um objeto vazio (cameraBox) para facilitar o controle do movimento da câmera
 scene.add(cameraBox); // Adiciona o cameraBox à cena
 
-let cenarios = []; // Cria um array para armazenar os cenários, embora neste código específico ele não seja utilizado posteriormente
+/*let cenarios = []; // Cria um array para armazenar os cenários, embora neste código específico ele não seja utilizado posteriormente
 const estacoes = ['verao', 'outono', 'inverno', 'primavera']; // Define um array com os nomes das estações do ano, que podem ser usados para criar diferentes tipos de cenários usando a função criaCenario, embora neste código específico eles não sejam utilizados posteriormente
 for (let i = 0; i < 4; i++) {
   let c = criaCenario(0, -30, (i * -100) - 100, estacoes[i]); // Cria um cenário usando a função criaCenario, posicionando-o em diferentes locais ao longo do eixo Z para criar uma sensação de profundidade e variedade na cena. O tipo de cenário é definido como 'primavera', mas poderia ser alterado para outros tipos, como 'verão', 'outono' ou 'inverno', dependendo da implementação da função criaCenario.
   cenarios.push(c); // Adiciona o cenário criado ao array de cenários, embora neste código específico o array não seja utilizado posteriormente. Isso pode ser útil para futuras manipulações ou para manter uma referência aos cenários criados.
   scene.add(c); // Adiciona o cenário à cena para que ele seja renderizado e visível na visualização final. Cada cenário é posicionado em um local diferente ao longo do eixo Z, criando uma sensação de profundidade e variedade na cena, e o tipo de cenário é definido como 'primavera', mas poderia ser alterado para outros tipos, como 'verão', 'outono' ou 'inverno', dependendo da implementação da função criaCenario.
-}
+} */
+
+let dadosCenario = criaCenario(0, -30, -150, 'verao'); // cria o cenário
+let cenarioObjeto = dadosCenario.ambiente; // cria um container com o cenário e as árvoes
+let terrenoMesh = dadosCenario.terrenoMesh; // pega a malha geométrica do chão do cenário
+scene.add(cenarioObjeto);
+
+let listaArvores = []; // separa as árvores em um array para facilitar o controle
+cenarioObjeto.children.forEach((child) => {
+  if (child !== terrenoMesh && child.type === "Object3D") { // se não for o chão e for do tipo "Object3D", ou seja, for uma árvore, adiciona à lista de árvores
+    listaArvores.push(child); // Adiciona o objeto filho à lista de árvores, desde que ele seja do tipo "Object3D" e não seja o terrenoMesh. Isso pode ser útil para futuras manipulações ou para manter uma referência às árvores criadas no cenário.
+  }
+});
+
+let deslocamentoZ = 0; // controla o deslocamento do cenário proceduralmente
 
 const aviao = criarAviao();
 const aviaoContainer = new THREE.Object3D(); // Cria um objeto vazio (aviaoContainer) para conter o avião, permitindo que o avião seja controlado como um grupo, facilitando a aplicação de transformações como movimento e rotação ao avião como um todo, sem afetar diretamente a posição ou rotação individual do modelo do avião.
@@ -144,12 +158,12 @@ function render() // Função de renderização que é chamada a cada frame para
     anguloDesejado = 0; // Se a diferença no eixo X for menor que o limiar de parada, define o ângulo desejado como 0 para que o avião fique nivelado
   }
 
-  cenarios.forEach((c)=>{
+  /*cenarios.forEach((c)=>{
     if (c.position.z > cameraBox.position.z + limite) { // Verifica se o cenário está dentro do limite de movimento da câmera, comparando a posição do cenário com a posição da câmera e o limite definido
       // let menorZ = Math.min(...cenarios.map(obj => obj.position.z)); // Encontra a menor posição Z entre os cenários para determinar onde reposicionar o cenário que saiu do limite}
       c.position.z -= tamanho * cenarios.length; // Reposiciona o cenário para a frente da cena, usando o menor Z encontrado e o tamanho do plano de movimento para garantir que ele apareça à frente dos outros cenários
     }
-  });
+  });*/
 
   aviaoContainer.position.x += (target.x - aviaoContainer.position.x) * 0.05; // Atualiza a posição da câmera no eixo X para se aproximar da posição alvo, usando uma interpolação suave multiplicada por 0.05 para controlar a velocidade do movimento
   cameraBox.position.z -= 0.5; // Atualiza a posição da câmera no eixo Z para se aproximar da posição alvo, usando uma interpolação suave multiplicada por 0.05 para controlar a velocidade do movimento
@@ -162,5 +176,71 @@ function render() // Função de renderização que é chamada a cada frame para
   camera.lookAt(cameraBox.position.x, cameraBox.position.y, cameraBox.position.z - 30); // Faz a câmera olhar para um ponto à frente dela, ajustando a posição de destino para que a câmera olhe para um ponto 30 unidades à frente no eixo Z, mantendo a mesma posição no eixo X e Y
 
   requestAnimationFrame(render); // Solicita que a função de renderização seja chamada novamente no próximo frame, criando um loop de animação contínuo
+  
+  deslocamentoZ += 0.5; // Atualiza o deslocamento do cenário para criar um efeito de movimento contínuo, aumentando o valor do deslocamento a cada frame para simular o movimento do avião através do cenário
+  /*const geoTerreno = terrenoMesh.geometry; // Acessa a geometria do terreno para atualizar os vértices com base no deslocamento
+  const atributoPosicao = geoTerreno.attributes.position; // Acessa o atributo de posição da geometria do terreno para modificar os vértices
+  */
+
+  function obterAlturaMontanha(x, z) { // Função para calcular a altura da montanha com base nas coordenadas x e z, usando uma função de ruído ou outra fórmula para criar variações na altura do terreno
+    let camada1 = Math.sin(x * 0.005) * Math.cos(z * 0.005) * 35;
+    let camada2 = Math.cos(x * 0.02 + z * 0.02)  * 8;
+    return camada1 + camada2; // Retorna a altura calculada para o ponto (x, z) com base na combinação das camadas de ruído
+  }
+
+  cenarioObjeto.children.forEach((meshFilho) => {
+    if (meshFilho.geometry && meshFilho.type === "Mesh") { // Verifica se o filho do cenário é uma malha (Mesh) com geometria, para aplicar as transformações de movimento e deformação apenas aos objetos que são malhas, evitando modificar outros tipos de objetos que possam estar presentes no cenário
+      const geo = meshFilho.geometry; // Acessa a geometria do filho do cenário para atualizar os vértices com base no deslocamento
+      const atributoPosicao = geo.attributes.position; // Acessa o atributo de posição da geometria do filho do cenário para modificar os vértices
+
+      for (let i = 0; i < atributoPosicao.count; i++) { // Itera sobre os vértices do filho do cenário para atualizar suas posições com base no deslocamento e na função de altura
+      /*let x = atributoPosicao.getX(i);
+        let z = atributoPosicao.getZ(i);
+        let novaAltura = obterAlturaMontanha(x, z - deslocamentoZ);
+      
+      let xGlobal = atributoPosicao.getX(i) + cenarioObjeto.position.x;
+      let zGlobal = atributoPosicao.getZ(i) + cenarioObjeto.position.z;
+      let alturaCalculada = obterAlturaMontanha(xGlobal, zGlobal);
+    */
+
+      let x = atributoPosicao.getX(i); // Calcula a posição global do vértice no eixo X, somando a posição local do vértice com a posição do cenário para obter a posição correta em relação ao terreno
+      let z = atributoPosicao.getZ(i); // Calcula a posição global do vértice no eixo Z, somando a posição local do vértice com a posição do cenário para obter a posição correta em relação ao terreno
+      let alturaCalculada = obterAlturaMontanha(x, z - deslocamentoZ); // Calcula a nova altura para o vértice com base na função de altura e no deslocamento
+
+      atributoPosicao.setZ(i, alturaCalculada); // Atualiza a posição Y do vértice com a nova altura calculada, criando um efeito de movimento do terreno à medida que o avião avança
+  }
+
+      atributoPosicao.needsUpdate = true; // Indica que o atributo de posição foi atualizado e precisa ser reprocessado pelo renderizador para refletir as mudanças na cena
+      geo.computeVertexNormals(); // Recalcula as normais dos vértices do filho do cenário para garantir que a iluminação e as sombras sejam renderizadas corretamente com base nas novas posições dos vértices, mantendo a aparência visual do terreno consistente à medida que ele se move e se deforma
+      geo.computeBoundingBox(); // Recalcula a caixa delimitadora da geometria do filho do cenário para garantir que as colisões e outras interações baseadas na caixa delimitadora sejam precisas com base nas novas posições dos vértices, mantendo a funcionalidade de detecção de colisões e outras interações que dependem da caixa delimitadora do terreno à medida que ele se move e se deforma
+      geo.computeBoundingSphere(); // Recalcula a esfera delimitadora da geometria do filho do cenário para garantir que as colisões e outras interações baseadas na esfera delimitadora sejam precisas com base nas novas posições dos vértices, mantendo a funcionalidade de detecção de colisões e outras interações que dependem da esfera delimitadora do terreno à medida que ele se move e se deforma    
+      }
+    });
+
+  /*
+  for (let i = 0; i < atributoPosicao.count; i++) { // Itera sobre os vértices do terreno para atualizar suas posições com base no deslocamento e na função de altura
+    let x = atributoPosicao.getX(i);  
+    let z = atributoPosicao.getZ(i);
+    let novaAltura = obterAlturaMontanha(x, z - deslocamentoZ);
+    atributoPosicao.setZ(i, novaAltura); // Atualiza a posição Y do vértice com a nova altura calculada, criando um efeito de movimento do terreno à medida que o avião avança
+  }
+
+  atributoPosicao.needsUpdate = true; // Indica que o atributo de posição foi atualizado e precisa ser reprocessado pelo renderizador para refletir as mudanças na cena
+  geoTerreno.computeVertexNormals(); // Recalcula as normais dos vértices do terreno para garantir que a iluminação e as sombras sejam renderizadas corretamente com base nas novas posições dos vértices, mantendo a aparência visual do terreno consistente à medida que ele se move e se deforma
+*/
+
+  listaArvores.forEach((arvore) => { // Itera sobre a lista de árvores para atualizar suas posições com base no deslocamento, criando um efeito de movimento das árvores junto com o terreno
+    
+   // let xGlobal = arvore.position.x + cenarioObjeto.position.x; // Calcula a posição global da árvore no eixo X, somando a posição local da árvore com a posição do cenário para obter a posição correta em relação ao terreno
+   // let zGlobal = arvore.position.z + cenarioObjeto.position.z; // Calcula a posição global da árvore no eixo Z, somando a posição local da árvore com a posição do cenário para obter a posição correta em relação ao terreno
+
+    let alturaNoChao = obterAlturaMontanha(arvore.position.x, arvore.position.z + deslocamentoZ); // Calcula a altura do terreno no ponto onde a árvore está localizada para ajustar a posição Y da árvore de acordo com o terreno
+    arvore.position.y = alturaNoChao; // Atualiza a posição Y da árvore para que ela fique alinhada com o terreno, criando um efeito de imersão das árvores no cenário à medida que o avião avança
+  });
+
+  //if (cameraBox.position.z < cenarioObjeto.position.z - 100) { // Verifica se a câmera ultrapassou um certo ponto em relação ao cenário, e se sim, reposiciona o cenário para criar um efeito de loop contínuo, garantindo que o cenário continue aparecendo à medida que a câmera avança
+  //  cenarioObjeto.position.z = cameraBox.position - 150; // Reposiciona o cenário para a frente da cena, usando um valor fixo de 200 para garantir que ele apareça à frente da câmera e continue o ciclo de movimento do cenário1
+  //}
+
   renderer.render(scene, camera); // Renderiza a cena usando a câmera, atualizando o que é exibido na tela com base nas mudanças feitas na cena e na posição da câmera
 }

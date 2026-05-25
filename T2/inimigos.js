@@ -5,8 +5,8 @@ import { GLTFLoader } from '../build/jsm/loaders/GLTFLoader.js';
 const CAMINHO_MODELO_INIMIGO = '../assets/models/drone.glb';
 // numero de inimigos ativos ao mesmo tempo
 const QUANTIDADE_INIMIGOS_ATIVOS = 2;
-// intervalo entre disparos do inimigo
-const CADENCIA_TIRO_INIMIGO_MS = 3000;
+// intervalo entre disparos do inimigo (ms) -> 3 tiros por segundo
+const CADENCIA_TIRO_INIMIGO_MS = 333;
 // limite lateral para entrada e saida dos inimigos
 const LIMITE_LATERAL_X = 26;
 // faixa de velocidade horizontal dos inimigos

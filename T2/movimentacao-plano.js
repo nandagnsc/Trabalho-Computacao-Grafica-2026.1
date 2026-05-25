@@ -173,7 +173,7 @@ const velocidadeInclinacao = 0.3; // T1: Define a velocidade de inclinação do 
 
 const speedProfiles = {
     // Cada perfil define o ritmo geral do jogo: avanço da câmera, resposta do avião, velocidade dos inimigos e velocidade dos tiros.
-    1: { name: 'lenta', cameraZSpeed: 0.2, movimentoXYFactor: 0.025, movimentoXYMultiplier: 0.45, tiroVelMultiplier: 0.45 },
+    1: { name: 'lenta', cameraZSpeed: 0.2, movimentoXYFactor: 0.025, movimentoXYMultiplier: 0.45, tiroVelMultiplier: 0.5 },
     2: { name: 'normal', cameraZSpeed: 0.5, movimentoXYFactor: 0.05, movimentoXYMultiplier: 1.0, tiroVelMultiplier: 1.0 },
     3: { name: 'rapida', cameraZSpeed: 1.6, movimentoXYFactor: 0.12, movimentoXYMultiplier: 2.0, tiroVelMultiplier: 2.0 },
 };

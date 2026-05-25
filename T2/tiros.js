@@ -133,7 +133,7 @@ export class SistemaTiros {
     if (!profile) return;
     if (typeof profile.tiroVelMultiplier === 'number') {
       this.velocidadeTiroJogador = 230 * profile.tiroVelMultiplier;
-      this.velocidadeTiroInimigo = 150 * profile.tiroVelMultiplier;
+      this.velocidadeTiroInimigo = 100 * profile.tiroVelMultiplier;
     }
   }
 

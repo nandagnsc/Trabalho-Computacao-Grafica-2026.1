@@ -22,7 +22,6 @@ const cameraBox = new THREE.Object3D();
 cameraBox.add(camera); // T1: Adiciona a câmera a um objeto vazio (cameraBox) para facilitar o controle do movimento da câmera
 scene.add(cameraBox); // T1: Adiciona o cameraBox à cena
 
-initDefaultBasicLight(scene, true); // T1: Use a iluminação padrão
 scene.fog = new THREE.Fog(new THREE.Color("pink"), 0.1, 600); // T1: Adiciona neblina à cena para criar um efeito de profundidade, usando a mesma cor do fundo para que os objetos desapareçam gradualmente à medida que se afastam da câmera
 
 const stats = new Stats();
@@ -93,6 +92,13 @@ for(let i = 0; i < 80; i++) {
     let arvore = dados.ambiente.children[1];
     if(arvore) {
         scene.add(arvore);
+        // Ativar sombras para a árvore (inclui todos os meshes filhos)
+        arvore.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
         arvore.position.x = (Math.random() - 0.5) * 800;
         arvore.position.z = -Math.random() * 800;
         arvore.position.y = getAltura(arvore.position.x, arvore.position.z) - 50;
@@ -108,6 +114,14 @@ aviao.position.set(0, 0, -25);
 aviao.rotateY(Math.PI / 2); // T1: Gira o avião para que ele ltado para a direção correta (para frente)
 cameraBox.add(aviaoContainer); // T1: Adiciona o avião à cena
 
+aviao.traverse((child) => {
+  if (child.isMesh) {
+    child.castShadow = true;
+    child.receiveShadow = true;
+  }
+});
+
+
 const sistemaInimigos = new SistemaInimigos(scene, cameraBox); // Cria o sistema responsável por spawn, movimento e disparo dos inimigos.
 const sistemaTiros = new SistemaTiros(scene, camera); // Cria o sistema que controla tiros do jogador e tiros dos inimigos.
 
@@ -119,6 +133,35 @@ const posicaoAviaoMundo = new THREE.Vector3(); // Guarda a posição global do a
 const posicaoMiraMundo = new THREE.Vector3(); // Guarda a posição global da mira para orientar o disparo do jogador.
 const posicaoJogadorParaInimigos = new THREE.Vector3(); // Vetor auxiliar com a posição que os inimigos usam para mirar no jogador.
 const centroHitboxJogador = new THREE.Vector3(); // Vetor auxiliar para montar o centro da hitbox do jogador em cada frame.
+
+const luzDirecional = new THREE.DirectionalLight(new THREE.Color("white"), 3.5);
+luzDirecional.castShadow = true;
+
+luzDirecional.shadow.mapSize.width = 2048;
+luzDirecional.shadow.mapSize.height = 2048;
+
+luzDirecional.shadow.camera.near = 0.1;
+luzDirecional.shadow.camera.far = 600; // Far alto para cobrir a diagonal da luz até o chão distante
+
+luzDirecional.shadow.camera.left = -300;
+luzDirecional.shadow.camera.right = 300;
+
+luzDirecional.shadow.camera.top = 300;
+luzDirecional.shadow.camera.bottom = -150;
+
+luzDirecional.shadow.camera.updateProjectionMatrix();
+// luzDirecional.shadow.bias = -0.0005; 
+// luzDirecional.shadow.normalBias = 0.05;
+
+scene.add(luzDirecional);
+
+const luzTarget = new THREE.Object3D(); // objeto para ser o alvo fixo da luz
+scene.add(luzTarget);
+luzDirecional.target = luzTarget;
+
+// Luz ambiente para suavizar as áreas sem sol direto
+const luzAmbiente = new THREE.AmbientLight(new THREE.Color("white"), 0.3);
+scene.add(luzAmbiente);
 
 // --- 4. CONTROLES E VARIÁVEIS GERAIS ---
 const target = new THREE.Vector3(0, 0, 0); // T1: Variável para armazenar a posição alvo para a câmera, que será atualizada com base na posição do mouse
@@ -287,7 +330,7 @@ function render() { // T1: Função de renderização que é chamada a cada fram
         if (h > 60) {
             corTemp.copy(corRocha);
         } else if (h > 45) {
-            corTemp.lerpColors(corGrama, corRocha, (h - 35) / 15);
+            corTemp.lerpColors(corGrama, corRocha, (h - 45) / 15);
         } else if (h > 20) {
             corTemp.copy(corGrama);
         } else if (h > 10) {
@@ -302,6 +345,7 @@ function render() { // T1: Função de renderização que é chamada a cada fram
     pos.needsUpdate = true;
     col.needsUpdate = true;
     terreno.geometry.computeVertexNormals();
+    terreno.receiveShadow = true;
 
     listaArvores.forEach(a => {
         a.position.y = getAltura(a.position.x, a.position.z) - 50;
@@ -339,9 +383,23 @@ function render() { // T1: Função de renderização que é chamada a cada fram
         aoAtingirInimigo: (idInimigo) => sistemaInimigos.marcarComoAtingido(idInimigo), // Quando um tiro acerta, avisa o sistema de inimigos para iniciar a animação de destruição.
     });
 
+    if (scene.fog && luzDirecional.castShadow) {// volume de visualização adaptativo ao fog    
+      // Multiplicando por 1.2 e 0.6 para cobrir o horizonte antes dele surgir na neblina
+      luzDirecional.shadow.camera.top = scene.fog.far * 1.2;
+      luzDirecional.shadow.camera.bottom = -scene.fog.far * 0.6;
+      luzDirecional.shadow.camera.updateProjectionMatrix();
+      
+      let alcanceVisaoZ = scene.fog.far * 0.4; // centraliza target na região média visível
+      // coloca target um pouco para a direita para cobrir árvores laterais
+      luzTarget.position.set(cameraBox.position.x + 50, cameraBox.position.y - 30, cameraBox.position.z - alcanceVisaoZ);
+      
+      luzDirecional.position.set(luzTarget.position.x + 150, cameraBox.position.y + 180, luzTarget.position.z + 100);
+    }
+    
     camera.lookAt(cameraBox.position.x, cameraBox.position.y, cameraBox.position.z - 30); // T1: Faz a câmera olhar para um ponto à frente dela, ajustando a posição de destino para que a câmera olhe para um ponto 30 unidades à frente no eixo Z, mantendo a mesma posição no eixo X e Y
     renderer.render(scene, camera); // T1: Renderiza a cena usando a câmera, atualizando o que é exibido na tela com base nas mudanças feitas na cena e na posição da câmera
     requestAnimationFrame(render); // T1: Solicita que a função de renderização seja chamada novamente no próximo frame, criando um loop de animação contínuo
+    
 }
 
 render();

@@ -149,11 +149,10 @@ aviao.position.set(0, 0, -25);
 aviao.rotateY(Math.PI / 2); 
 cameraBox.add(aviaoContainer);
 
-const anguloMaxRotacao = 0.5;
-const limiarParadaRotacao = 1;
-const velocidadeInclinacao = 0.3;
 const target = new THREE.Vector3(0, 0, 0);
 let simulaPausada = false;
+let deslocamentoZ = 0;
+let cenarioObjeto = { children: [] };
 
 // perfis de velocidade: 1=lento, 2=normal, 3=rapido
 const speedProfiles = {
@@ -222,8 +221,15 @@ function pausarSimulacao() { // Função para pausar a simulação, que pode ser
   renderer.domElement.style.cursor = 'default'; //como esta pausada, mostrar o cursor para o usuario
   mira.visible = false; // Esconde a mira quando a simulação estiver pausada, para evitar que ela fique visível enquanto o usuário interage com a cena ou visualiza a cena congelada. Isso pode ajudar a melhorar a experiência do usuário e evitar distrações visuais durante a pausa da simulação.
 }
-window.addEventListener('keydown', (event) => { if (event.key === 'Escape') { simulaPausada = true; renderer.domElement.style.cursor = 'default'; mira.visible = false; } });
-renderer.domElement.addEventListener('click', () => { simulaPausada = false; renderer.domElement.style.cursor = 'none'; mira.visible = true; });
+
+function retomarSimulacao() {
+  simulaPausada = false;
+  renderer.domElement.style.cursor = 'none';
+  mira.visible = true;
+}
+
+window.addEventListener('keydown', (event) => { if (event.key === 'Escape') { pausarSimulacao(); } });
+renderer.domElement.addEventListener('click', () => { retomarSimulacao(); });
 
 const infoBox = new SecondaryBox("");
 const controls = new InfoBox();
@@ -268,23 +274,7 @@ window.addEventListener('blur', () => {
   sistemaTiros.definirDisparoContinuoAtivo(false);
 });
 
-var infoBox = new SecondaryBox(""); // Cria uma caixa de informações para exibir instruções ou detalhes sobre o controle
-
-function showInformation(){ // Função para mostrar as informações na caixa de informações
-  var controls = new InfoBox(); // Cria um objeto InfoBox para exibir as informações
-  controls.add("Controle com maouse"); // Adiciona uma linha de texto à caixa de informações
-  controls.add("Movimento no plano"); // Adiciona outra linha de texto à caixa de informações
-  controls.show(); // 
-}
-
-buildInterface(); // Chama a função para construir a interface do usuário, que pode incluir controles ou opções para interagir com a cena
 render(); // Inicia o loop de renderização para atualizar a cena continuamente
-
-function buildInterface() {
-  var gui = new GUI();
-  gui.add(scene.fog, 'far', 60, 300)
-    .name("Fog Far");
-}
 
 function render() // Função de renderização que é chamada a cada frame para atualizar a cena
 {
@@ -378,9 +368,6 @@ function render() // Função de renderização que é chamada a cada frame para
     aoAtingirInimigo: (idInimigo) => sistemaInimigos.marcarComoAtingido(idInimigo),
   });
 
-  // agenda o proximo frame
-  requestAnimationFrame(render); // agenda o proximo frame
-  
   deslocamentoZ += cameraZSpeed; // atualiza deslocamento do cenario usando velocidade Z atual
   /*const geoTerreno = terrenoMesh.geometry; // Acessa a geometria do terreno para atualizar os vértices com base no deslocamento
   const atributoPosicao = geoTerreno.attributes.position; // Acessa o atributo de posição da geometria do terreno para modificar os vértices
@@ -432,4 +419,5 @@ function render() // Função de renderização que é chamada a cada frame para
   camera.lookAt(cameraBox.position.x, cameraBox.position.y, cameraBox.position.z - 30);
   renderer.render(scene, camera);
   requestAnimationFrame(render);
+  
 }

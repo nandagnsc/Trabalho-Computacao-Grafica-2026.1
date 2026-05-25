@@ -12,310 +12,181 @@ import { criaCenarioVerao, criaCenarioInverno, criaCenarioOutono, criaCenarioPri
 import { criarAviao } from './aviao.js';
 import GUI from '../libs/util/dat.gui.module.js';
 
-var scene = new THREE.Scene();   // Cria a cena principal
-const clock = new THREE.Clock(); // Cria um relógio para controlar o tempo entre os frames
-initDefaultBasicLight(scene, true);    // Use a iluminação padrão
+const Perlin = new function()  {
+    this.p = new Uint8Array(512);
+    const p = new Uint8Array(256);
+    for(let i=0; i<256; i++) p[i] = i;
+    for(let i=255; i>0; i--) { const j = Math.floor(Math.random() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+    for(let i=0; i<512; i++) this.p[i] = p[i & 255];
+    this.fade = t => t * t * t * (t * (t * 6 - 15) + 10);
+    this.lerp = (t, a, b) => a + t * (b - a);
+    this.grad = (hash, x, y) => { const h = hash & 15; const u = h < 8 ? x : y; const v = h < 4 ? y : h === 12 || h === 14 ? x : 0; return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v); };
+    this.noise = (x, y) => {
+        const X = Math.floor(x) & 255, Y = Math.floor(y) & 255; x -= Math.floor(x); y -= Math.floor(y);
+        const u = this.fade(x), v = this.fade(y);
+        const a = this.p[X] + Y, aa = this.p[a], ab = this.p[a + 1], b = this.p[X + 1] + Y, ba = this.p[b], bb = this.p[b + 1];
+        return this.lerp(v, this.lerp(u, this.grad(this.p[aa], x, y), this.grad(this.p[ba], x - 1, y)), this.lerp(u, this.grad(this.p[ab], x, y - 1), this.grad(this.p[bb], x - 1, y - 1)));
+    };
+};
+
+const scene = new THREE.Scene();
+const renderer = initRenderer();
+renderer.setClearColor("pink");
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0.0, 0.0, 0.0);
+camera.up.set(0, 1, 0);
+
+window.addEventListener('resize', function() { onWindowResize(camera, renderer) }, false);
+
+const cameraBox = new THREE.Object3D();
+cameraBox.add(camera);
+scene.add(cameraBox);
+
+initDefaultBasicLight(scene, true);
+scene.fog = new THREE.Fog(new THREE.Color("pink"), 0.1, 400);
 
 const stats = new Stats();
-
-const container = document.getElementById( 'container' );
-
-if (container) {
-  container.appendChild(stats.dom);
-} else{
-  console.warn("Container não encontrado!");
-}
-
-/*
-container.appendChild( stats.dom );
-*/
-
-var renderer = initRenderer();   // Função de visualização em util/utils
-  renderer.setClearColor("pink"); // Define a cor de fundo do renderizador
-  // renderer.domElement.style.cursor = 'none';
-let camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000); // Cria a câmera
-  camera.position.set(0.0, 0.0, 0.0); // Define a posição inicial da câmera
-  camera.up.set( 0, 1, 0 ); // Define a direção "para cima" da câmera
-
-window.addEventListener( 'resize', function(){onWindowResize(camera, renderer)}, false ); // Escuta as mudanças no tamanho da janela para ajustar a câmera e o renderizador
-
-let cameraBox = new THREE.Object3D();
-cameraBox.add(camera); // Adiciona a câmera a um objeto vazio (cameraBox) para facilitar o controle do movimento da câmera
-scene.add(cameraBox); // Adiciona o cameraBox à cena
+const container = document.getElementById('container');
+if (container) { container.appendChild(stats.dom); }
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-// 1. Criar o Plano Invisível à frente
-// Ele fica dentro do cameraBox para acompanhar a câmera no eixo Z
-const planoInvisivelGeo = new THREE.PlaneGeometry(80, 60); // Tamanho da área de movimento
-const planoInvisivelMat = new THREE.MeshBasicMaterial({ visible: false }); // Fica invisível
+const planoInvisivelGeo = new THREE.PlaneGeometry(80, 60);
+const planoInvisivelMat = new THREE.MeshBasicMaterial({ visible: false });
 const planoInvisivel = new THREE.Mesh(planoInvisivelGeo, planoInvisivelMat);
-// Posicionado em Z = -35 (um pouco à frente do avião que está em Z = -25)
-planoInvisivel.position.set(0, 0, -35); 
+planoInvisivel.position.set(0, 0, -35);
 cameraBox.add(planoInvisivel);
 
-// 2. Criar o Objeto da Mira (Target)
-// Vamos criar um anel simples em formato de mira usando RingGeometry
-const mira = new THREE.Object3D(); // Cria um objeto vazio para conter a mira, permitindo que a mira seja controlada como um grupo, facilitando a aplicação de transformações como movimento e rotação à mira como um todo, sem afetar diretamente a posição ou rotação individual dos componentes da mira.
+const mira = new THREE.Object3D();
 const miraMat = new THREE.MeshBasicMaterial({ color: 'red', side: THREE.DoubleSide, depthTest: false });
-const miraGeo1 = new THREE.RingGeometry(0.3, 0.4, 16);
-const miraMesh1 = new THREE.Mesh(miraGeo1, miraMat);
-miraMesh1.renderOrder = 1; // Garante que a mira seja renderizada por cima de outros objetos, evitando que ela seja ocultada por outros elementos da cena, especialmente quando a mira estiver muito próxima de outros objetos ou do plano invisível. Isso é importante para manter a visibilidade da mira e garantir que ela seja claramente visível para o usuário durante a interação com a cena.
 
-const miraGeo2 = new THREE.PlaneGeometry(0.1, 0.3);
-const miraMesh2 = new THREE.Mesh(miraGeo2, miraMat);
-miraMesh2.renderOrder = 1; // Garante que o segundo anel da mira seja renderizado por cima de outros objetos
-miraMesh2.position.set(0, 0.45, 0); // Posiciona o segundo anel da mira um pouco acima do primeiro para criar um formato de mira mais completo
-const miraMesh3 = new THREE.Mesh(miraGeo2, miraMat);
-miraMesh3.renderOrder = 1; // Garante que o terceiro anel da mira seja renderizado por cima de outros objetos
-miraMesh3.position.set(0, -0.45, 0); // Posiciona o terceiro anel da mira um pouco abaixo do primeiro para criar um formato de mira mais completo
-
-const miraGeo4 = new THREE.PlaneGeometry(0.3, 0.1);
-const miraMesh4 = new THREE.Mesh(miraGeo4, miraMat);
-miraMesh4.renderOrder = 1; // Garante que o quarto anel da mira seja renderizado por cima de outros objetos
-miraMesh4.position.set(0.45, 0, 0); // Posiciona o quarto anel da mira um pouco à direita do primeiro para criar um formato de mira mais completo
-const miraMesh5 = new THREE.Mesh(miraGeo4, miraMat);
-miraMesh5.renderOrder = 1; // Garante que o quinto anel da mira seja renderizado por cima de outros objetos
-miraMesh5.position.set(-0.45, 0, 0); // Posiciona o quinto anel da mira um pouco à esquerda do primeiro para criar um formato de mira mais completo
-
-
-mira.add(miraMesh1); // Adiciona o primeiro anel da mira ao objeto da mira
-mira.add(miraMesh2); // Adiciona o segundo anel da mira ao objeto da mira
-mira.add(miraMesh3); // Adiciona o terceiro anel da mira ao objeto da mira
-mira.add(miraMesh4); // Adiciona o quarto anel da mira ao objeto da mira
-mira.add(miraMesh5); // Adiciona o quinto anel da mira ao objeto da mira
-// A mira precisa ter a mesma coordenada Z do plano invisível
+// Construção da Mira
+const miraMesh1 = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.4, 16), miraMat); miraMesh1.renderOrder = 1;
+const miraMesh2 = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.3), miraMat); miraMesh2.renderOrder = 1; miraMesh2.position.set(0, 0.45, 0);
+const miraMesh3 = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.3), miraMat); miraMesh3.renderOrder = 1; miraMesh3.position.set(0, -0.45, 0);
+const miraMesh4 = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.1), miraMat); miraMesh4.renderOrder = 1; miraMesh4.position.set(0.45, 0, 0);
+const miraMesh5 = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.1), miraMat); miraMesh5.renderOrder = 1; miraMesh5.position.set(-0.45, 0, 0);
+mira.add(miraMesh1, miraMesh2, miraMesh3, miraMesh4, miraMesh5);
 mira.position.set(0, 0, -35);
 cameraBox.add(mira);
 
-/*let cenarios = []; // Cria um array para armazenar os cenários, embora neste código específico ele não seja utilizado posteriormente
-const estacoes = ['verao', 'outono', 'inverno', 'primavera']; // Define um array com os nomes das estações do ano, que podem ser usados para criar diferentes tipos de cenários usando a função criaCenario, embora neste código específico eles não sejam utilizados posteriormente
-for (let i = 0; i < 4; i++) {
-  let c = criaCenario(0, -30, (i * -100) - 100, estacoes[i]); // Cria um cenário usando a função criaCenario, posicionando-o em diferentes locais ao longo do eixo Z para criar uma sensação de profundidade e variedade na cena. O tipo de cenário é definido como 'primavera', mas poderia ser alterado para outros tipos, como 'verão', 'outono' ou 'inverno', dependendo da implementação da função criaCenario.
-  cenarios.push(c); // Adiciona o cenário criado ao array de cenários, embora neste código específico o array não seja utilizado posteriormente. Isso pode ser útil para futuras manipulações ou para manter uma referência aos cenários criados.
-  scene.add(c); // Adiciona o cenário à cena para que ele seja renderizado e visível na visualização final. Cada cenário é posicionado em um local diferente ao longo do eixo Z, criando uma sensação de profundidade e variedade na cena, e o tipo de cenário é definido como 'primavera', mas poderia ser alterado para outros tipos, como 'verão', 'outono' ou 'inverno', dependendo da implementação da função criaCenario.
-} */
+const largura = 1000, profundidade = 1500, divisoes = 150; 
+const geoTerreno = new THREE.PlaneGeometry(largura, profundidade, divisoes, divisoes);
+geoTerreno.rotateX(-Math.PI / 2); 
 
-let dadosCenario = criaCenario(0, -30, -150, 'verao'); // cria o cenário
-let cenarioObjeto = dadosCenario.ambiente; // cria um container com o cenário e as árvoes
-let terrenoMesh = dadosCenario.terrenoMesh; // pega a malha geométrica do chão do cenário
-scene.add(cenarioObjeto);
-
-let listaArvores = []; // separa as árvores em um array para facilitar o controle
-cenarioObjeto.children.forEach((child) => {
-  if (child !== terrenoMesh && child.type === "Object3D") { // se não for o chão e for do tipo "Object3D", ou seja, for uma árvore, adiciona à lista de árvores
-    listaArvores.push(child); // Adiciona o objeto filho à lista de árvores, desde que ele seja do tipo "Object3D" e não seja o terrenoMesh. Isso pode ser útil para futuras manipulações ou para manter uma referência às árvores criadas no cenário.
-  }
+const matTerreno = new THREE.MeshStandardMaterial({ 
+    color: new THREE.Color("green"), 
+    wireframe: false, 
+    side: THREE.DoubleSide,
+    flatShading: true 
 });
+const terreno = new THREE.Mesh(geoTerreno, matTerreno);
+terreno.position.y = -50; 
+scene.add(terreno);
 
-let deslocamentoZ = 0; // controla o deslocamento do cenário proceduralmente
+function getAltura(x, z) {
+    let nx = x * 0.005, nz = z * 0.005;
+    // O algoritmo de Perlin Noise atende ao requisito procedural do trabalho
+    let h = (Perlin.noise(nx, nz) * 20 + Perlin.noise(nx*2, nz*2) * 10);
+    return h + 30; 
+}
+
+let listaArvores = [];
+for(let i = 0; i < 80; i++) {
+    let dados = criaCenario(0, 0, 0, 'verao');
+    let arvore = dados.ambiente.children[1]; 
+    if(arvore) {
+        scene.add(arvore);
+        arvore.position.x = (Math.random() - 0.5) * 800;
+        arvore.position.z = -Math.random() * 800;
+        arvore.position.y = getAltura(arvore.position.x, arvore.position.z) - 50;
+        listaArvores.push(arvore);
+    }
+}
 
 const aviao = criarAviao();
-const aviaoContainer = new THREE.Object3D(); // Cria um objeto vazio (aviaoContainer) para conter o avião, permitindo que o avião seja controlado como um grupo, facilitando a aplicação de transformações como movimento e rotação ao avião como um todo, sem afetar diretamente a posição ou rotação individual do modelo do avião.
-aviaoContainer.add(aviao); // Adiciona o avião a um objeto vazio (aviaoContainer) para facilitar o controle do movimento do avião
-
-const anguloMaxRotacao = 0.5; // Define o ângulo máximo de rotação do avião em radianos, limitando a inclinação do avião para evitar que ele gire excessivamente quando a posição alvo da câmera estiver muito distante da posição atual do avião. O valor de 0.6 radianos é +- 34/35 graus.
-const limiarParadaRotacao= 1; // Define o limiar de parada para a rotação do avião, que é a distância mínima entre a posição alvo da câmera e a posição atual do avião no eixo X para que o avião comece a girar. Se a diferença no eixo X for menor que esse limiar, o avião permanecerá nivelado, evitando que ele gire desnecessariamente quando a posição alvo da câmera estiver muito próxima da posição atual do avião.  
-const velocidadeInclinacao = 0.3; // Define a velocidade de inclinação do avião,  para controlar a intensidade do efeito de inclinação do avião com base na posição do mouse. Um valor mais alto resultará em uma inclinação mais rápida e intensa, enquanto um valor mais baixo resultará em uma inclinação mais suave e lenta.
-
-
+const aviaoContainer = new THREE.Object3D();
+aviaoContainer.add(aviao);
 aviao.position.set(0, 0, -25);
-aviao.rotateY(Math.PI/2); // Gira o avião para que ele ltado para a direção correta (para frente)
-cameraBox.add(aviaoContainer); // Adiciona o avião à cena
+aviao.rotateY(Math.PI / 2); 
+cameraBox.add(aviaoContainer);
 
-scene.fog = new THREE.Fog(new THREE.Color("pink"), 0.1, 200); // Adiciona neblina à cena para criar um efeito de profundidade, usando a mesma cor do fundo para que os objetos desapareçam gradualmente à medida que se afastam da câmera
-
-var target = new THREE.Vector3(0, 0, 0); // Variável para armazenar a posição alvo para a câmera, que será atualizada com base na posição do mouse
+const anguloMaxRotacao = 0.5;
+const limiarParadaRotacao = 1;
+const velocidadeInclinacao = 0.3;
+const target = new THREE.Vector3(0, 0, 0);
 let simulaPausada = false;
 
-window.addEventListener('mousemove', (event) => { // Executa o movimento do mouse para atualizar a posição alvo da câmera
-  if (simulaPausada) { //ve se a simulação ta pausada, e se estiver, a função retorna sem atualizar a posição alvo da câmera, permitindo que o usuário veja a cena congelada enquanto a simulação está pausada.
-    return;
-  }
-  
-  // Garante que o cursor do mouse permaneça oculto durante o jogo
+window.addEventListener('mousemove', (event) => {
+  if (simulaPausada) return;
   renderer.domElement.style.cursor = 'none';
-
-  // Normaliza as coordenadas do mouse para o Raycaster
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 });
 
-function pausarSimulacao() { // Função para pausar a simulação, que pode ser chamada quando o usuário aperta esc 
-  simulaPausada = true; //indica que esta pausada
-  renderer.domElement.style.cursor = 'default'; //como esta pausada, mostrar o cursor para o usuario
-  mira.visible = false; // Esconde a mira quando a simulação estiver pausada, para evitar que ela fique visível enquanto o usuário interage com a cena ou visualiza a cena congelada. Isso pode ajudar a melhorar a experiência do usuário e evitar distrações visuais durante a pausa da simulação.
-}
+window.addEventListener('keydown', (event) => { if (event.key === 'Escape') { simulaPausada = true; renderer.domElement.style.cursor = 'default'; mira.visible = false; } });
+renderer.domElement.addEventListener('click', () => { simulaPausada = false; renderer.domElement.style.cursor = 'none'; mira.visible = true; });
 
-function retomarSimulacao() {
-  if (!simulaPausada) { // Verifica se a simulação já está em execução para evitar retomar desnecessariamente
-    return; // Se a simulação já estiver em execução, a função retorna sem fazer nada
-  }
+const infoBox = new SecondaryBox("");
+const controls = new InfoBox();
+controls.add("Controle com o mouse");
+controls.add("Pressione ESC para pausar, clique para voltar.");
+controls.show();
 
-  simulaPausada = false; // Indica que a simulação foi retomada
-  renderer.domElement.style.cursor = 'none'; // Esconde o cursor novamente
-  mira.visible = true; // Mostra a mira quando a simulação estiver em execução
-}
+const gui = new GUI();
+gui.add(scene.fog, 'far', 100, 500).name("Neblina (Fog)");
 
-window.addEventListener('keydown', (event) => { //ao pressionar a tecla esc, pausa a simulação
-  if (event.key === 'Escape') {
-    pausarSimulacao();
-  }
-});
-
-renderer.domElement.addEventListener('click', () => { //ao clicar, retorna a simulação
-  retomarSimulacao();
-});
-
-var infoBox = new SecondaryBox(""); // Cria uma caixa de informações para exibir instruções ou detalhes sobre o controle
-
-function showInformation(){ // Função para mostrar as informações na caixa de informações
-  var controls = new InfoBox(); // Cria um objeto InfoBox para exibir as informações
-  controls.add("Controle com maouse"); // Adiciona uma linha de texto à caixa de informações
-  controls.add("Movimento no plano"); // Adiciona outra linha de texto à caixa de informações
-  controls.show(); // 
-}
-
-buildInterface(); // Chama a função para construir a interface do usuário, que pode incluir controles ou opções para interagir com a cena
-render(); // Inicia o loop de renderização para atualizar a cena continuamente
-
-function buildInterface() {
-  var gui = new GUI();
-  gui.add(scene.fog, 'far', 60, 300)
-    .name("Fog Far");
-}
-
-function render() // Função de renderização que é chamada a cada frame para atualizar a cena
-{
+function render() {
   stats.update();
-
-  if (simulaPausada) { // Verifica se a simulação está pausada, e se estiver, renderiza a cena atual sem atualizar as posições ou movimentos dos objetos, permitindo que o usuário veja a cena congelada enquanto a simulação está pausada.
-    renderer.render(scene, camera); 
-    requestAnimationFrame(render);
-    return;
-  }
+  if (simulaPausada) { renderer.render(scene, camera); requestAnimationFrame(render); return; }
  
-  raycaster.setFromCamera(mouse, camera); // Atualiza raycaster com a posição do mouse e a câmera para calcular as interseções com o plano invisível, permitindo que a posição alvo da câmera seja atualizada com base na posição do mouse na cena. Isso é essencial para criar a interação entre o movimento do mouse e o controle da câmera, permitindo que o usuário mova a câmera de forma intuitiva usando o mouse.
-    
-  const intersecoes = raycaster.intersectObject(planoInvisivel); // Calcula as interseções com o plano invisível
-  
-  const limiteX = 22; // Limite para esquerda (-) e direita (+)
-  const limiteY = 12;  // Limite para cima
+  cameraBox.position.z -= 0.6;
 
+  raycaster.setFromCamera(mouse, camera);
+  const intersecoes = raycaster.intersectObject(planoInvisivel);
+  
   if (intersecoes.length > 0) {    
-    let pontoIntersecao = intersecoes[0].point; // Ponto onde o mouse está tocando no plano invisível
-    
-    let pontoLocal = cameraBox.worldToLocal(pontoIntersecao.clone()); // Converte o ponto global para o espaço local do cameraBox
-
-    // Trava os valores de X e Y dentro dos limites estabelecidos
-    let xTravado = THREE.MathUtils.clamp(pontoLocal.x, - limiteX, limiteX);
-    let yTravado = THREE.MathUtils.clamp(pontoLocal.y, - limiteY, limiteY);
-
-    // A mira (target) segue exatamente a posição do mouse no plano invisível
-    mira.position.x = xTravado;
-    mira.position.y = yTravado;
-
-    // Atualizamos a variável target antiga para o avião seguir a mira suavemente
-    target.x = xTravado;
-    target.y = yTravado;
+    let pontoLocal = cameraBox.worldToLocal(intersecoes[0].point.clone());
+    let xTravado = THREE.MathUtils.clamp(pontoLocal.x, -22, 22);
+    let yTravado = THREE.MathUtils.clamp(pontoLocal.y, -22, 22);
+    mira.position.x = xTravado; mira.position.y = yTravado;
+    target.x = xTravado; target.y = yTravado;
   }
   
-  let limite = 50; // Define um limite para o movimento da câmera, para evitar que ela se mova muito longe do centro da cena  
-  let tamanho = 100; // Define o tamanho do plano de movimento da câmera, que pode ser usado para calcular os limites do movimento com base na posição do mouse
+  let diferencaX = target.x - aviaoContainer.position.x;
+  let anguloDesejado = (Math.abs(diferencaX) > limiarParadaRotacao) ? ((diferencaX > 0) ? -anguloMaxRotacao : anguloMaxRotacao) : 0;
 
-  let diferencaX = target.x - aviaoContainer.position.x; // Calcula a diferença entre a posição alvo da câmera no eixo X e a posição atual do avião no eixo X, o que pode ser usado para determinar a direção e a intensidade do movimento do avião
-  let anguloDesejado = 0; // Inicializa a variável para armazenar o ângulo desejado de rotação do avião, que será calculado com base na diferença entre a posição alvo da câmera e a posição atual do avião
-
-  if(Math.abs(diferencaX) > limiarParadaRotacao){ // Verifica se a diferença no eixo X é maior que o limiar de parada para rotação, o que pode ser usado para evitar que o avião gire desnecessariamente quando a posição alvo da câmera estiver muito próxima da posição atual do avião
-    anguloDesejado = (diferencaX > 0) ? -anguloMaxRotacao : anguloMaxRotacao; // Define o ângulo desejado de rotação do avião com base na direção da diferença no eixo X, usando o ângulo máximo de rotação para limitar a inclinação do avião
-  } else {
-    anguloDesejado = 0; // Se a diferença no eixo X for menor que o limiar de parada, define o ângulo desejado como 0 para que o avião fique nivelado
+  aviaoContainer.position.x += (target.x - aviaoContainer.position.x) * 0.05;
+  aviaoContainer.position.y += (target.y - aviaoContainer.position.y) * 0.05;
+  aviaoContainer.rotation.z += (anguloDesejado - aviaoContainer.rotation.z) * velocidadeInclinacao;
+  
+  camera.position.x += (aviaoContainer.position.x * 0.4 - camera.position.x) * 0.05;
+  camera.position.y += (aviaoContainer.position.y * 0.4 - camera.position.y) * 0.05;
+  
+  terreno.position.z = cameraBox.position.z - 250; 
+  
+  const pos = terreno.geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+      let xGlobal = pos.getX(i) + terreno.position.x;
+      let zGlobal = pos.getZ(i) + terreno.position.z;
+      pos.setY(i, getAltura(xGlobal, zGlobal));
   }
+  pos.needsUpdate = true;
+  terreno.geometry.computeVertexNormals();
 
-  /*cenarios.forEach((c)=>{
-    if (c.position.z > cameraBox.position.z + limite) { // Verifica se o cenário está dentro do limite de movimento da câmera, comparando a posição do cenário com a posição da câmera e o limite definido
-      // let menorZ = Math.min(...cenarios.map(obj => obj.position.z)); // Encontra a menor posição Z entre os cenários para determinar onde reposicionar o cenário que saiu do limite}
-      c.position.z -= tamanho * cenarios.length; // Reposiciona o cenário para a frente da cena, usando o menor Z encontrado e o tamanho do plano de movimento para garantir que ele apareça à frente dos outros cenários
-    }
-  });*/
-
-  aviaoContainer.position.x += (target.x - aviaoContainer.position.x) * 0.05; // Atualiza a posição da câmera no eixo X para se aproximar da posição alvo, usando uma interpolação suave multiplicada por 0.05 para controlar a velocidade do movimento
-  cameraBox.position.z -= 0.5; // Atualiza a posição da câmera no eixo Z para se aproximar da posição alvo, usando uma interpolação suave multiplicada por 0.05 para controlar a velocidade do movimento
-  aviaoContainer.position.y += (target.y - aviaoContainer.position.y) * 0.05; // Mantém a posição da câmera no eixo Y constante em 15, para que a câmera se mova apenas no plano XZ
-  
-  
-  aviaoContainer.rotation.z += (anguloDesejado - aviaoContainer.rotation.z) * velocidadeInclinacao;  // Atualiza a rotação do avião no eixo Z para criar um efeito de inclinação com base na posição do mouse, multiplicando pela velocidade de inclinação para controlar a intensidade do efeito
-  
-  cameraBox.translateX((target.x - aviaoContainer.position.x)/15);
-  camera.lookAt(cameraBox.position.x, cameraBox.position.y, cameraBox.position.z - 30); // Faz a câmera olhar para um ponto à frente dela, ajustando a posição de destino para que a câmera olhe para um ponto 30 unidades à frente no eixo Z, mantendo a mesma posição no eixo X e Y
-
-  requestAnimationFrame(render); // Solicita que a função de renderização seja chamada novamente no próximo frame, criando um loop de animação contínuo
-  
-  deslocamentoZ += 0.5; // Atualiza o deslocamento do cenário para criar um efeito de movimento contínuo, aumentando o valor do deslocamento a cada frame para simular o movimento do avião através do cenário
-  /*const geoTerreno = terrenoMesh.geometry; // Acessa a geometria do terreno para atualizar os vértices com base no deslocamento
-  const atributoPosicao = geoTerreno.attributes.position; // Acessa o atributo de posição da geometria do terreno para modificar os vértices
-  */
-
-  function obterAlturaMontanha(x, z) { // Função para calcular a altura da montanha com base nas coordenadas x e z, usando uma função de ruído ou outra fórmula para criar variações na altura do terreno
-    let camada1 = Math.sin(x * 0.005) * Math.cos(z * 0.005) * 35;
-    let camada2 = Math.cos(x * 0.02 + z * 0.02)  * 8;
-    return camada1 + camada2; // Retorna a altura calculada para o ponto (x, z) com base na combinação das camadas de ruído
-  }
-
-  cenarioObjeto.children.forEach((meshFilho) => {
-    if (meshFilho.geometry && meshFilho.type === "Mesh") { // Verifica se o filho do cenário é uma malha (Mesh) com geometria, para aplicar as transformações de movimento e deformação apenas aos objetos que são malhas, evitando modificar outros tipos de objetos que possam estar presentes no cenário
-      const geo = meshFilho.geometry; // Acessa a geometria do filho do cenário para atualizar os vértices com base no deslocamento
-      const atributoPosicao = geo.attributes.position; // Acessa o atributo de posição da geometria do filho do cenário para modificar os vértices
-
-      for (let i = 0; i < atributoPosicao.count; i++) { // Itera sobre os vértices do filho do cenário para atualizar suas posições com base no deslocamento e na função de altura
-      /*let x = atributoPosicao.getX(i);
-        let z = atributoPosicao.getZ(i);
-        let novaAltura = obterAlturaMontanha(x, z - deslocamentoZ);
-      
-      let xGlobal = atributoPosicao.getX(i) + cenarioObjeto.position.x;
-      let zGlobal = atributoPosicao.getZ(i) + cenarioObjeto.position.z;
-      let alturaCalculada = obterAlturaMontanha(xGlobal, zGlobal);
-    */
-
-      let x = atributoPosicao.getX(i); // Calcula a posição global do vértice no eixo X, somando a posição local do vértice com a posição do cenário para obter a posição correta em relação ao terreno
-      let z = atributoPosicao.getZ(i); // Calcula a posição global do vértice no eixo Z, somando a posição local do vértice com a posição do cenário para obter a posição correta em relação ao terreno
-      let alturaCalculada = obterAlturaMontanha(x, z - deslocamentoZ); // Calcula a nova altura para o vértice com base na função de altura e no deslocamento
-
-      atributoPosicao.setZ(i, alturaCalculada); // Atualiza a posição Y do vértice com a nova altura calculada, criando um efeito de movimento do terreno à medida que o avião avança
-  }
-
-      atributoPosicao.needsUpdate = true; // Indica que o atributo de posição foi atualizado e precisa ser reprocessado pelo renderizador para refletir as mudanças na cena
-      geo.computeVertexNormals(); // Recalcula as normais dos vértices do filho do cenário para garantir que a iluminação e as sombras sejam renderizadas corretamente com base nas novas posições dos vértices, mantendo a aparência visual do terreno consistente à medida que ele se move e se deforma
-      geo.computeBoundingBox(); // Recalcula a caixa delimitadora da geometria do filho do cenário para garantir que as colisões e outras interações baseadas na caixa delimitadora sejam precisas com base nas novas posições dos vértices, mantendo a funcionalidade de detecção de colisões e outras interações que dependem da caixa delimitadora do terreno à medida que ele se move e se deforma
-      geo.computeBoundingSphere(); // Recalcula a esfera delimitadora da geometria do filho do cenário para garantir que as colisões e outras interações baseadas na esfera delimitadora sejam precisas com base nas novas posições dos vértices, mantendo a funcionalidade de detecção de colisões e outras interações que dependem da esfera delimitadora do terreno à medida que ele se move e se deforma    
+  listaArvores.forEach(a => {
+      a.position.y = getAltura(a.position.x, a.position.z) - 50; 
+      if (a.position.z > cameraBox.position.z + 50) {
+          a.position.z = cameraBox.position.z - 600 - Math.random() * 200; 
+          a.position.x = cameraBox.position.x + (Math.random() - 0.5) * 800; 
       }
-    });
-
-  /*
-  for (let i = 0; i < atributoPosicao.count; i++) { // Itera sobre os vértices do terreno para atualizar suas posições com base no deslocamento e na função de altura
-    let x = atributoPosicao.getX(i);  
-    let z = atributoPosicao.getZ(i);
-    let novaAltura = obterAlturaMontanha(x, z - deslocamentoZ);
-    atributoPosicao.setZ(i, novaAltura); // Atualiza a posição Y do vértice com a nova altura calculada, criando um efeito de movimento do terreno à medida que o avião avança
-  }
-
-  atributoPosicao.needsUpdate = true; // Indica que o atributo de posição foi atualizado e precisa ser reprocessado pelo renderizador para refletir as mudanças na cena
-  geoTerreno.computeVertexNormals(); // Recalcula as normais dos vértices do terreno para garantir que a iluminação e as sombras sejam renderizadas corretamente com base nas novas posições dos vértices, mantendo a aparência visual do terreno consistente à medida que ele se move e se deforma
-*/
-
-  listaArvores.forEach((arvore) => { // Itera sobre a lista de árvores para atualizar suas posições com base no deslocamento, criando um efeito de movimento das árvores junto com o terreno
-    
-   // let xGlobal = arvore.position.x + cenarioObjeto.position.x; // Calcula a posição global da árvore no eixo X, somando a posição local da árvore com a posição do cenário para obter a posição correta em relação ao terreno
-   // let zGlobal = arvore.position.z + cenarioObjeto.position.z; // Calcula a posição global da árvore no eixo Z, somando a posição local da árvore com a posição do cenário para obter a posição correta em relação ao terreno
-
-    let alturaNoChao = obterAlturaMontanha(arvore.position.x, arvore.position.z + deslocamentoZ); // Calcula a altura do terreno no ponto onde a árvore está localizada para ajustar a posição Y da árvore de acordo com o terreno
-    arvore.position.y = alturaNoChao; // Atualiza a posição Y da árvore para que ela fique alinhada com o terreno, criando um efeito de imersão das árvores no cenário à medida que o avião avança
   });
 
-  //if (cameraBox.position.z < cenarioObjeto.position.z - 100) { // Verifica se a câmera ultrapassou um certo ponto em relação ao cenário, e se sim, reposiciona o cenário para criar um efeito de loop contínuo, garantindo que o cenário continue aparecendo à medida que a câmera avança
-  //  cenarioObjeto.position.z = cameraBox.position - 150; // Reposiciona o cenário para a frente da cena, usando um valor fixo de 200 para garantir que ele apareça à frente da câmera e continue o ciclo de movimento do cenário1
-  //}
-
-  renderer.render(scene, camera); // Renderiza a cena usando a câmera, atualizando o que é exibido na tela com base nas mudanças feitas na cena e na posição da câmera
+  camera.lookAt(cameraBox.position.x, cameraBox.position.y, cameraBox.position.z - 30);
+  renderer.render(scene, camera);
+  requestAnimationFrame(render);
 }
+
+render();

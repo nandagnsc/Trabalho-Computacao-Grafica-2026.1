@@ -172,8 +172,8 @@ const limiarParadaRotacao = 1; // T1: Define o limiar de parada para a rotação
 const velocidadeInclinacao = 0.3; // T1: Define a velocidade de inclinação do avião,  para controlar a intensidade do efeito de inclinação do avião com base na posição do mouse. Um valor mais alto resultará em uma inclinação mais rápida e intensa, enquanto um valor mais baixo resultará em uma inclinação mais suave e lenta.
 
 const anguloMaxRotacaoX = 0.2; // T2: Define o ângulo máximo de rotação do avião em radianos, limitando a inclinação do avião para evitar que ele gire excessivamente quando a posição alvo da câmera estiver muito distante da posição atual do avião. O valor de 0.6 radianos é +- 34/35 graus.
-const limiarParadaRotacaoX = 0.8; // T2: Define o limiar de parada para a rotação do avião, que é a distância mínima entre a posição alvo da câmera e a posição atual do avião no eixo X para que o avião comece a girar. Se a diferença no eixo X for menor que esse limiar, o avião permanecerá nivelado, evitando que ele gire desnecessariamente quando a posição alvo da câmera estiver muito próxima da posição atual do avião.
-const velocidadeInclinacaoX = 0.25; // T2: Define a velocidade de inclinação do avião,  para controlar a intensidade do efeito de inclinação do avião com base na posição do mouse. Um valor mais alto resultará em uma inclinação mais rápida e intensa, enquanto um valor mais baixo resultará em uma inclinação mais suave e lenta.
+const limiarParadaRotacaoX = 1; // T2: Define o limiar de parada para a rotação do avião, que é a distância mínima entre a posição alvo da câmera e a posição atual do avião no eixo X para que o avião comece a girar. Se a diferença no eixo X for menor que esse limiar, o avião permanecerá nivelado, evitando que ele gire desnecessariamente quando a posição alvo da câmera estiver muito próxima da posição atual do avião.
+const velocidadeInclinacaoX = 0.3; // T2: Define a velocidade de inclinação do avião,  para controlar a intensidade do efeito de inclinação do avião com base na posição do mouse. Um valor mais alto resultará em uma inclinação mais rápida e intensa, enquanto um valor mais baixo resultará em uma inclinação mais suave e lenta.
 
 const speedProfiles = {
     // Cada perfil define o ritmo geral do jogo: avanço da câmera, resposta do avião, velocidade dos inimigos e velocidade dos tiros.
@@ -312,7 +312,7 @@ function render() { // T1: Função de renderização que é chamada a cada fram
     let anguloDesejado = (Math.abs(diferencaX) > limiarParadaRotacao) ? ((diferencaX > 0) ? -anguloMaxRotacao : anguloMaxRotacao) : 0; // T1: Define o ângulo desejado de rotação do avião com base na direção da diferença no eixo X, usando o ângulo máximo de rotação para limitar a inclinação do avião
     
     let diferencaY = target.y - aviaoContainer.position.y; // T2: Calcula a diferença entre a posição alvo da câmera no eixo Y e a posição atual do avião no eixo Y, o que pode ser usado para determinar a direção e a intensidade do movimento do avião
-    let anguloDesejadoX = (Math.abs(diferencaY) > limiarParadaRotacao) ? ((diferencaY > 0) ? anguloMaxRotacaoX : -anguloMaxRotacaoX) : 0; // T2: Define o ângulo desejado de rotação do avião com base na direção da diferença no eixo Y, usando o ângulo máximo de rotação para limitar a inclinação do avião
+    let anguloDesejadoX = (Math.abs(diferencaY) > limiarParadaRotacaoX) ? ((diferencaY > 0) ? anguloMaxRotacaoX : -anguloMaxRotacaoX) : 0; // T2: Define o ângulo desejado de rotação do avião com base na direção da diferença no eixo Y, usando o ângulo máximo de rotação para limitar a inclinação do avião
 
     aviaoContainer.position.x += (target.x - aviaoContainer.position.x) * movimentoXYFactor; // Move o avião no eixo X com suavização definida pelo perfil de velocidade.
     aviaoContainer.position.y += (target.y - aviaoContainer.position.y) * movimentoXYFactor; // Move o avião no eixo Y com o mesmo fator para manter resposta consistente.

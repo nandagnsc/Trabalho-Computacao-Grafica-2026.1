@@ -10,9 +10,13 @@ import {initRenderer,
 //import { Color } from '../build/three.core.js';
 import { criaCenarioVerao, criaCenarioInverno, criaCenarioOutono, criaCenarioPrimavera, criaCenario } from './ambiente.js';
 import { criarAviao } from './aviao.js';
+import { SistemaInimigos } from './inimigos.js';
+import { SistemaTiros } from './tiros.js';
 import GUI from '../libs/util/dat.gui.module.js';
 
+// cena principal do trabalho
 var scene = new THREE.Scene();   // Cria a cena principal
+// relogio usado para animacoes por delta time
 const clock = new THREE.Clock(); // Cria um relógio para controlar o tempo entre os frames
 initDefaultBasicLight(scene, true);    // Use a iluminação padrão
 
@@ -40,6 +44,7 @@ let camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHei
 window.addEventListener( 'resize', function(){onWindowResize(camera, renderer)}, false ); // Escuta as mudanças no tamanho da janela para ajustar a câmera e o renderizador
 
 let cameraBox = new THREE.Object3D();
+// agrupa a camera para movimentar tudo junto
 cameraBox.add(camera); // Adiciona a câmera a um objeto vazio (cameraBox) para facilitar o controle do movimento da câmera
 scene.add(cameraBox); // Adiciona o cameraBox à cena
 
@@ -112,8 +117,26 @@ cenarioObjeto.children.forEach((child) => {
 let deslocamentoZ = 0; // controla o deslocamento do cenário proceduralmente
 
 const aviao = criarAviao();
+// grupo que recebe o modelo do avião do jogador
 const aviaoContainer = new THREE.Object3D(); // Cria um objeto vazio (aviaoContainer) para conter o avião, permitindo que o avião seja controlado como um grupo, facilitando a aplicação de transformações como movimento e rotação ao avião como um todo, sem afetar diretamente a posição ou rotação individual do modelo do avião.
 aviaoContainer.add(aviao); // Adiciona o avião a um objeto vazio (aviaoContainer) para facilitar o controle do movimento do avião
+
+// sistema que controla inimigos e tiros
+const sistemaInimigos = new SistemaInimigos(scene, cameraBox);
+const sistemaTiros = new SistemaTiros(scene, camera);
+
+// carrega os inimigos antes de iniciar a interação completa
+sistemaInimigos.inicializar().catch((erro) => {
+  console.error('Nao foi possivel carregar inimigos:', erro);
+});
+
+// bounding box manual do jogador para colisao mais justa
+const caixaJogador = new THREE.Box3();
+const tamanhoHitboxJogador = new THREE.Vector3(8, 3, 8);
+const posicaoAviaoMundo = new THREE.Vector3();
+const posicaoMiraMundo = new THREE.Vector3();
+const posicaoJogadorParaInimigos = new THREE.Vector3();
+const centroHitboxJogador = new THREE.Vector3();
 
 const anguloMaxRotacao = 0.5; // Define o ângulo máximo de rotação do avião em radianos, limitando a inclinação do avião para evitar que ele gire excessivamente quando a posição alvo da câmera estiver muito distante da posição atual do avião. O valor de 0.6 radianos é +- 34/35 graus.
 const limiarParadaRotacao= 1; // Define o limiar de parada para a rotação do avião, que é a distância mínima entre a posição alvo da câmera e a posição atual do avião no eixo X para que o avião comece a girar. Se a diferença no eixo X for menor que esse limiar, o avião permanecerá nivelado, evitando que ele gire desnecessariamente quando a posição alvo da câmera estiver muito próxima da posição atual do avião.  
@@ -128,6 +151,56 @@ scene.fog = new THREE.Fog(new THREE.Color("pink"), 0.1, 200); // Adiciona neblin
 
 var target = new THREE.Vector3(0, 0, 0); // Variável para armazenar a posição alvo para a câmera, que será atualizada com base na posição do mouse
 let simulaPausada = false;
+
+// perfis de velocidade: 1=lento, 2=normal, 3=rapido
+const speedProfiles = {
+  1: { name: 'lento', cameraZSpeed: 0.12, movimentoXYFactor: 0.015, movimentoXYMultiplier: 0.5, tiroVelMultiplier: 0.45 },
+  2: { name: 'normal', cameraZSpeed: 0.5, movimentoXYFactor: 0.05, movimentoXYMultiplier: 1.0, tiroVelMultiplier: 1.0 },
+  3: { name: 'rapido', cameraZSpeed: 1.6, movimentoXYFactor: 0.12, movimentoXYMultiplier: 2.0, tiroVelMultiplier: 2.0 },
+};
+
+let modoVelocidade = 2;
+let cameraZSpeed = speedProfiles[modoVelocidade].cameraZSpeed;
+let movimentoXYFactor = speedProfiles[modoVelocidade].movimentoXYFactor;
+
+function criarIndicadorModo() {
+  let el = document.getElementById('modo-velocidade');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'modo-velocidade';
+  el.style.position = 'fixed';
+  el.style.left = '280px';
+  el.style.top = '8px';
+  el.style.padding = '8px 10px';
+  el.style.background = 'rgba(0,0,0,0.45)';
+  el.style.color = '#fff';
+  el.style.border = '2px solid #fff';
+  el.style.borderRadius = '6px';
+  el.style.fontFamily = 'Verdana, sans-serif';
+  el.style.zIndex = '30';
+  document.body.appendChild(el);
+  return el;
+}
+
+const indicadorModo = criarIndicadorModo();
+function atualizarElementoModo() {
+  indicadorModo.textContent = `modo ${modoVelocidade} — ${speedProfiles[modoVelocidade].name}`;
+}
+
+function aplicarModoVelocidade(modo) {
+  if (!speedProfiles[modo]) return;
+  modoVelocidade = modo;
+  const p = speedProfiles[modo];
+  cameraZSpeed = p.cameraZSpeed;
+  movimentoXYFactor = p.movimentoXYFactor;
+  // atualiza sistemas que dependem de velocidade
+  sistemaTiros.setSpeedProfile({ tiroVelMultiplier: p.tiroVelMultiplier });
+  sistemaInimigos.setSpeedProfile({ movimentoXYMultiplier: p.movimentoXYMultiplier });
+  atualizarElementoModo();
+}
+
+// aplica modo inicial
+aplicarModoVelocidade(modoVelocidade);
 
 window.addEventListener('mousemove', (event) => { // Executa o movimento do mouse para atualizar a posição alvo da câmera
   if (simulaPausada) { //ve se a simulação ta pausada, e se estiver, a função retorna sem atualizar a posição alvo da câmera, permitindo que o usuário veja a cena congelada enquanto a simulação está pausada.
@@ -144,6 +217,7 @@ window.addEventListener('mousemove', (event) => { // Executa o movimento do mous
 
 function pausarSimulacao() { // Função para pausar a simulação, que pode ser chamada quando o usuário aperta esc 
   simulaPausada = true; //indica que esta pausada
+  sistemaTiros.definirDisparoContinuoAtivo(false);
   renderer.domElement.style.cursor = 'default'; //como esta pausada, mostrar o cursor para o usuario
   mira.visible = false; // Esconde a mira quando a simulação estiver pausada, para evitar que ela fique visível enquanto o usuário interage com a cena ou visualiza a cena congelada. Isso pode ajudar a melhorar a experiência do usuário e evitar distrações visuais durante a pausa da simulação.
 }
@@ -161,11 +235,35 @@ function retomarSimulacao() {
 window.addEventListener('keydown', (event) => { //ao pressionar a tecla esc, pausa a simulação
   if (event.key === 'Escape') {
     pausarSimulacao();
+    return;
+  }
+
+  // teclas 1,2,3 trocam o modo de velocidade
+  if (event.key === '1' || event.key === '2' || event.key === '3') {
+    aplicarModoVelocidade(Number(event.key));
   }
 });
 
 renderer.domElement.addEventListener('click', () => { //ao clicar, retorna a simulação
   retomarSimulacao();
+});
+
+renderer.domElement.addEventListener('mousedown', (evento) => {
+  // ao segurar o botao esquerdo, liga o disparo continuo
+  if (evento.button !== 0) return;
+  retomarSimulacao();
+  sistemaTiros.definirDisparoContinuoAtivo(true);
+});
+
+window.addEventListener('mouseup', (evento) => {
+  // ao soltar o botao esquerdo, para o disparo continuo
+  if (evento.button !== 0) return;
+  sistemaTiros.definirDisparoContinuoAtivo(false);
+});
+
+window.addEventListener('blur', () => {
+  // evita tiro travado se a janela perder o foco
+  sistemaTiros.definirDisparoContinuoAtivo(false);
 });
 
 var infoBox = new SecondaryBox(""); // Cria uma caixa de informações para exibir instruções ou detalhes sobre o controle
@@ -189,6 +287,10 @@ function buildInterface() {
 function render() // Função de renderização que é chamada a cada frame para atualizar a cena
 {
   stats.update();
+  // calcula o tempo desde o quadro anterior
+  const deltaSegundos = clock.getDelta();
+  // tempo absoluto usado nas cadencias
+  const tempoAtualMs = performance.now();
 
   if (simulaPausada) { // Verifica se a simulação está pausada, e se estiver, renderiza a cena atual sem atualizar as posições ou movimentos dos objetos, permitindo que o usuário veja a cena congelada enquanto a simulação está pausada.
     renderer.render(scene, camera); 
@@ -240,9 +342,9 @@ function render() // Função de renderização que é chamada a cada frame para
     }
   });*/
 
-  aviaoContainer.position.x += (target.x - aviaoContainer.position.x) * 0.05; // Atualiza a posição da câmera no eixo X para se aproximar da posição alvo, usando uma interpolação suave multiplicada por 0.05 para controlar a velocidade do movimento
-  cameraBox.position.z -= 0.5; // Atualiza a posição da câmera no eixo Z para se aproximar da posição alvo, usando uma interpolação suave multiplicada por 0.05 para controlar a velocidade do movimento
-  aviaoContainer.position.y += (target.y - aviaoContainer.position.y) * 0.05; // Mantém a posição da câmera no eixo Y constante em 15, para que a câmera se mova apenas no plano XZ
+  aviaoContainer.position.x += (target.x - aviaoContainer.position.x) * movimentoXYFactor; // atualiza posição X do avião com fator dinamico
+  cameraBox.position.z -= cameraZSpeed; // velocidade Z da camera controlada pelo perfil
+  aviaoContainer.position.y += (target.y - aviaoContainer.position.y) * movimentoXYFactor; // atualiza posição Y do avião com fator dinamico
   
   
   aviaoContainer.rotation.z += (anguloDesejado - aviaoContainer.rotation.z) * velocidadeInclinacao;  // Atualiza a rotação do avião no eixo Z para criar um efeito de inclinação com base na posição do mouse, multiplicando pela velocidade de inclinação para controlar a intensidade do efeito
@@ -250,9 +352,37 @@ function render() // Função de renderização que é chamada a cada frame para
   cameraBox.translateX((target.x - aviaoContainer.position.x)/15);
   camera.lookAt(cameraBox.position.x, cameraBox.position.y, cameraBox.position.z - 30); // Faz a câmera olhar para um ponto à frente dela, ajustando a posição de destino para que a câmera olhe para um ponto 30 unidades à frente no eixo Z, mantendo a mesma posição no eixo X e Y
 
-  requestAnimationFrame(render); // Solicita que a função de renderização seja chamada novamente no próximo frame, criando um loop de animação contínuo
+  aviaoContainer.getWorldPosition(posicaoAviaoMundo);
+  // centraliza a hitbox perto da fuselagem do avião
+  centroHitboxJogador.copy(posicaoAviaoMundo);
+  centroHitboxJogador.y += 0.8;
+  caixaJogador.setFromCenterAndSize(centroHitboxJogador, tamanhoHitboxJogador);
+  mira.getWorldPosition(posicaoMiraMundo);
+
+  // atualiza movimento, tiros e colisoes dos inimigos
+  sistemaInimigos.atualizar(
+    deltaSegundos,
+    tempoAtualMs,
+    () => aviaoContainer.getWorldPosition(posicaoJogadorParaInimigos).clone().add(new THREE.Vector3(0, 0.8, 0)),
+    (origemMundo, alvoMundo, idInimigoOrigem) => {
+      sistemaTiros.criarTiroInimigo(origemMundo, alvoMundo, idInimigoOrigem);
+    }
+  );
+
+  sistemaTiros.atualizar({
+    deltaSegundos,
+    tempoAtualMs,
+    posicaoAviaoMundo,
+    posicaoMiraMundo,
+    boxJogador: caixaJogador,
+    inimigosColisiveis: sistemaInimigos.obterInimigosColisiveis(),
+    aoAtingirInimigo: (idInimigo) => sistemaInimigos.marcarComoAtingido(idInimigo),
+  });
+
+  // agenda o proximo frame
+  requestAnimationFrame(render); // agenda o proximo frame
   
-  deslocamentoZ += 0.5; // Atualiza o deslocamento do cenário para criar um efeito de movimento contínuo, aumentando o valor do deslocamento a cada frame para simular o movimento do avião através do cenário
+  deslocamentoZ += cameraZSpeed; // atualiza deslocamento do cenario usando velocidade Z atual
   /*const geoTerreno = terrenoMesh.geometry; // Acessa a geometria do terreno para atualizar os vértices com base no deslocamento
   const atributoPosicao = geoTerreno.attributes.position; // Acessa o atributo de posição da geometria do terreno para modificar os vértices
   */

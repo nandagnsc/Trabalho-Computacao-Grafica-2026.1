@@ -8,22 +8,22 @@ import { SistemaTiros } from './tiros.js';
 import GUI from '../libs/util/dat.gui.module.js';
 
 // --- 1. SETUP DA CENA ---
-const scene = new THREE.Scene();
-const clock = new THREE.Clock();
-const renderer = initRenderer();
-renderer.setClearColor("pink");
+const scene = new THREE.Scene(); // T1: Cria a cena principal
+const clock = new THREE.Clock(); // T1: Cria um relógio para controlar o tempo entre os frames
+const renderer = initRenderer(); // T1: Função de visualização em util/utils
+renderer.setClearColor("pink"); // T1: Define a cor de fundo do renderizador
 
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0.0, 0.0, 0.0);
-camera.up.set(0, 1, 0);
-window.addEventListener('resize', function() { onWindowResize(camera, renderer) }, false);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000); // T1: Cria a câmera
+camera.position.set(0.0, 0.0, 0.0); // T1: Define a posição inicial da câmera
+camera.up.set(0, 1, 0); // T1: Define a direção "para cima" da câmera
+window.addEventListener('resize', function() { onWindowResize(camera, renderer) }, false); // T1: Escuta as mudanças no tamanho da janela para ajustar a câmera e o renderizador
 
 const cameraBox = new THREE.Object3D();
-cameraBox.add(camera);
-scene.add(cameraBox);
+cameraBox.add(camera); // T1: Adiciona a câmera a um objeto vazio (cameraBox) para facilitar o controle do movimento da câmera
+scene.add(cameraBox); // T1: Adiciona o cameraBox à cena
 
-initDefaultBasicLight(scene, true);
-scene.fog = new THREE.Fog(new THREE.Color("pink"), 0.1, 600);
+initDefaultBasicLight(scene, true); // T1: Use a iluminação padrão
+scene.fog = new THREE.Fog(new THREE.Color("pink"), 0.1, 600); // T1: Adiciona neblina à cena para criar um efeito de profundidade, usando a mesma cor do fundo para que os objetos desapareçam gradualmente à medida que se afastam da câmera
 
 const stats = new Stats();
 const container = document.getElementById('container');
@@ -102,96 +102,129 @@ for(let i = 0; i < 80; i++) {
 
 // --- 3. AVIÃO, INIMIGOS E TIROS ---
 const aviao = criarAviao();
-const aviaoContainer = new THREE.Object3D();
-aviaoContainer.add(aviao);
+const aviaoContainer = new THREE.Object3D(); // T1: Cria um objeto vazio (aviaoContainer) para conter o avião, permitindo que o avião seja controlado como um grupo, facilitando a aplicação de transformações como movimento e rotação ao avião como um todo, sem afetar diretamente a posição ou rotação individual do modelo do avião.
+aviaoContainer.add(aviao); // T1: Adiciona o avião a um objeto vazio (aviaoContainer) para facilitar o controle do movimento do avião
 aviao.position.set(0, 0, -25);
-aviao.rotateY(Math.PI / 2);
-cameraBox.add(aviaoContainer);
+aviao.rotateY(Math.PI / 2); // T1: Gira o avião para que ele ltado para a direção correta (para frente)
+cameraBox.add(aviaoContainer); // T1: Adiciona o avião à cena
 
-const sistemaInimigos = new SistemaInimigos(scene, cameraBox);
-const sistemaTiros = new SistemaTiros(scene, camera);
+const sistemaInimigos = new SistemaInimigos(scene, cameraBox); // Cria o sistema responsável por spawn, movimento e disparo dos inimigos.
+const sistemaTiros = new SistemaTiros(scene, camera); // Cria o sistema que controla tiros do jogador e tiros dos inimigos.
 
-sistemaInimigos.inicializar().catch(erro => console.error('Erro nos inimigos:', erro));
+sistemaInimigos.inicializar().catch(erro => console.error('Erro nos inimigos:', erro)); // Carrega modelo dos inimigos e prepara a lista inicial; se falhar, mostra no console.
 
-const caixaJogador = new THREE.Box3();
-const tamanhoHitboxJogador = new THREE.Vector3(8, 3, 8);
-const posicaoAviaoMundo = new THREE.Vector3();
-const posicaoMiraMundo = new THREE.Vector3();
-const posicaoJogadorParaInimigos = new THREE.Vector3();
-const centroHitboxJogador = new THREE.Vector3();
+const caixaJogador = new THREE.Box3(); // Caixa de colisão final do jogador (hitbox usada para detectar tiro inimigo).
+const tamanhoHitboxJogador = new THREE.Vector3(8, 3, 8); // Tamanho da hitbox: largura, altura e profundidade.
+const posicaoAviaoMundo = new THREE.Vector3(); // Guarda a posição global do avião para usar na lógica de tiro e colisão.
+const posicaoMiraMundo = new THREE.Vector3(); // Guarda a posição global da mira para orientar o disparo do jogador.
+const posicaoJogadorParaInimigos = new THREE.Vector3(); // Vetor auxiliar com a posição que os inimigos usam para mirar no jogador.
+const centroHitboxJogador = new THREE.Vector3(); // Vetor auxiliar para montar o centro da hitbox do jogador em cada frame.
 
 // --- 4. CONTROLES E VARIÁVEIS GERAIS ---
-const target = new THREE.Vector3(0, 0, 0);
+const target = new THREE.Vector3(0, 0, 0); // T1: Variável para armazenar a posição alvo para a câmera, que será atualizada com base na posição do mouse
 let simulaPausada = false;
 
-const anguloMaxRotacao = 0.5;
-const limiarParadaRotacao = 1;
-const velocidadeInclinacao = 0.3;
+const anguloMaxRotacao = 0.5; // T1: Define o ângulo máximo de rotação do avião em radianos, limitando a inclinação do avião para evitar que ele gire excessivamente quando a posição alvo da câmera estiver muito distante da posição atual do avião. O valor de 0.6 radianos é +- 34/35 graus.
+const limiarParadaRotacao = 1; // T1: Define o limiar de parada para a rotação do avião, que é a distância mínima entre a posição alvo da câmera e a posição atual do avião no eixo X para que o avião comece a girar. Se a diferença no eixo X for menor que esse limiar, o avião permanecerá nivelado, evitando que ele gire desnecessariamente quando a posição alvo da câmera estiver muito próxima da posição atual do avião.
+const velocidadeInclinacao = 0.3; // T1: Define a velocidade de inclinação do avião,  para controlar a intensidade do efeito de inclinação do avião com base na posição do mouse. Um valor mais alto resultará em uma inclinação mais rápida e intensa, enquanto um valor mais baixo resultará em uma inclinação mais suave e lenta.
 
 const speedProfiles = {
-    1: { name: 'lento', cameraZSpeed: 0.12, movimentoXYFactor: 0.015, movimentoXYMultiplier: 0.5, tiroVelMultiplier: 0.45 },
+    // Cada perfil define o ritmo geral do jogo: avanço da câmera, resposta do avião, velocidade dos inimigos e velocidade dos tiros.
+    1: { name: 'lenta', cameraZSpeed: 0.2, movimentoXYFactor: 0.025, movimentoXYMultiplier: 0.45, tiroVelMultiplier: 0.45 },
     2: { name: 'normal', cameraZSpeed: 0.5, movimentoXYFactor: 0.05, movimentoXYMultiplier: 1.0, tiroVelMultiplier: 1.0 },
-    3: { name: 'rapido', cameraZSpeed: 1.6, movimentoXYFactor: 0.12, movimentoXYMultiplier: 2.0, tiroVelMultiplier: 2.0 },
+    3: { name: 'rapida', cameraZSpeed: 1.6, movimentoXYFactor: 0.12, movimentoXYMultiplier: 2.0, tiroVelMultiplier: 2.0 },
 };
-let modoVelocidade = 2;
-let cameraZSpeed = speedProfiles[modoVelocidade].cameraZSpeed;
-let movimentoXYFactor = speedProfiles[modoVelocidade].movimentoXYFactor;
+
+function criarIndicadorVelocidade() {
+    let indicador = document.getElementById('indicador-velocidade');
+    if (indicador) return indicador;
+
+    indicador = document.createElement('div');
+    indicador.id = 'indicador-velocidade';
+    indicador.style.position = 'fixed';
+    indicador.style.top = '5px';
+    indicador.style.left = '320px';
+    indicador.style.padding = '10px 14px';
+    indicador.style.border = '2px solid #ffffff';
+    indicador.style.borderRadius = '8px';
+    indicador.style.background = 'rgba(0, 0, 0, 0.45)';
+    indicador.style.color = '#ffffff';
+    indicador.style.fontFamily = 'Verdana, sans-serif';
+    indicador.style.fontSize = '14px';
+    indicador.style.fontWeight = 'bold';
+    indicador.style.zIndex = '20';
+
+    document.body.appendChild(indicador);
+    return indicador;
+}
+
+const indicadorVelocidade = criarIndicadorVelocidade();
+
+function atualizarIndicadorVelocidade() {
+    const perfil = speedProfiles[modoVelocidade]; // pega o perfil atual (1, 2 ou 3)
+    indicadorVelocidade.textContent = `Velocidade: ${modoVelocidade} ${perfil.name}`; // atualiza com modo atual
+}
+
+let modoVelocidade = 2; // Inicia o jogo no perfil normal
+let cameraZSpeed = speedProfiles[modoVelocidade].cameraZSpeed; // Velocidade com que o jogo avança no eixo Z 
+let movimentoXYFactor = speedProfiles[modoVelocidade].movimentoXYFactor; // Fator de suavização da resposta do avião no eixo X/Y.
 
 function aplicarModoVelocidade(modo) {
-    if (!speedProfiles[modo]) return;
-    modoVelocidade = modo;
-    const p = speedProfiles[modo];
-    cameraZSpeed = p.cameraZSpeed;
-    movimentoXYFactor = p.movimentoXYFactor;
-    sistemaTiros.setSpeedProfile({ tiroVelMultiplier: p.tiroVelMultiplier });
-    sistemaInimigos.setSpeedProfile({ movimentoXYMultiplier: p.movimentoXYMultiplier });
+    if (!speedProfiles[modo]) return; // Evita aplicar modos inválidos caso outra tecla seja pressionada.
+    modoVelocidade = modo; // Salva o modo escolhido (1, 2 ou 3) para o restante da lógica usar.
+    const p = speedProfiles[modo]; // Pega os parâmetros completos do perfil selecionado.
+    cameraZSpeed = p.cameraZSpeed; // Ajusta a velocidade de avanço do jogo/câmera.
+    movimentoXYFactor = p.movimentoXYFactor; // Ajusta o quão rápido o avião acompanha o alvo do mouse.
+    sistemaTiros.setSpeedProfile({ tiroVelMultiplier: p.tiroVelMultiplier }); // Atualiza a velocidade dos tiros no sistema de tiros.
+    sistemaInimigos.setSpeedProfile({ movimentoXYMultiplier: p.movimentoXYMultiplier }); // Atualiza a velocidade horizontal dos inimigos.
+    atualizarIndicadorVelocidade(); // Atualiza a caixinha  para o jogador ver qual modo está ativo.
 }
 aplicarModoVelocidade(modoVelocidade);
 
 window.addEventListener('mousemove', (event) => {
-    if (simulaPausada) return;
+    if (simulaPausada) return; // sem atualizar alvo/mira durante pausa
     renderer.domElement.style.cursor = 'none';
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1; // T1: Normaliza a posição do mouse no eixo X para o intervalo [-1, 1]
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; // T1: Normaliza a posição do mouse no eixo Y para o intervalo [-1, 1]
 });
 
 function pausarSimulacao() {
-    simulaPausada = true;
-    sistemaTiros.definirDisparoContinuoAtivo(false);
-    renderer.domElement.style.cursor = 'default';
-    mira.visible = false;
+    simulaPausada = true; // Ativa o estado de pausa para interromper atualizações 
+    sistemaTiros.definirDisparoContinuoAtivo(false); // Desliga o disparo contínuo para não continuar atirando durante a pausa.
+    renderer.domElement.style.cursor = 'default'; // Mostra o cursor normal para facilitar interação fora do combate.
+    mira.visible = false; // Esconde a mira para sinalizar que o jogo está pausado.
 }
 
 function retomarSimulacao() {
-    simulaPausada = false;
-    renderer.domElement.style.cursor = 'none';
-    mira.visible = true;
+    simulaPausada = false; // Remove o estado de pausa e permite que o loop volte a atualizar tudo.
+    renderer.domElement.style.cursor = 'none'; // Oculta o cursor para voltar ao modo de mira com mouse.
+    mira.visible = true; // exibe novamente a mira para retomar o combate.
 }
 
 window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') pausarSimulacao();
-    if (['1', '2', '3'].includes(event.key)) aplicarModoVelocidade(Number(event.key));
+    if (event.key === 'Escape') pausarSimulacao(); //ESC pausa o game
+    if (['1', '2', '3'].includes(event.key)) aplicarModoVelocidade(Number(event.key)); // troca modo de velocidade por tecla
 });
 
 renderer.domElement.addEventListener('click', () => retomarSimulacao());
 
 renderer.domElement.addEventListener('mousedown', (evento) => {
-    if (evento.button !== 0) return;
-    retomarSimulacao();
-    sistemaTiros.definirDisparoContinuoAtivo(true);
+    if (evento.button !== 0) return; // Só considera botão esquerdo para o disparo principal.
+    retomarSimulacao(); // Se estiver pausado, o clique no canvas já retoma o jogo.
+    sistemaTiros.definirDisparoContinuoAtivo(true); // Ativa o modo de tiro contínuo enquanto o botão estiver pressionado.
 });
 
 window.addEventListener('mouseup', (evento) => {
-    if (evento.button !== 0) return;
-    sistemaTiros.definirDisparoContinuoAtivo(false);
+    if (evento.button !== 0) return; // Ignora botões diferentes do esquerdo.
+    sistemaTiros.definirDisparoContinuoAtivo(false); // Ao soltar o botão, encerra o disparo contínuo.
 });
 
-window.addEventListener('blur', () => sistemaTiros.definirDisparoContinuoAtivo(false));
+window.addEventListener('blur', () => sistemaTiros.definirDisparoContinuoAtivo(false)); //se perder foco da janela, para disparo
 
-const infoBox = new SecondaryBox("");
+const infoBox = new SecondaryBox(""); // T1: Cria uma caixa de informações para exibir instruções ou detalhes sobre o controle
 const controls = new InfoBox();
-controls.add("Controle com o mouse");
-controls.add("Pressione ESC para pausar, clique para voltar.");
+controls.add("Controle com o mouse"); // T1: Adiciona uma linha de texto à caixa de informações
+controls.add("Pressione ESC para pausar, clique para voltar."); // dica da pausa via ESC e clique, so informa o usuario
 controls.show();
 
 const gui = new GUI();
@@ -204,7 +237,7 @@ const corAgua = new THREE.Color(0x0077BE);
 const corTemp = new THREE.Color();
 
 // --- 5. LOOP DE RENDERIZAÇÃO ---
-function render() {
+function render() { // T1: Função de renderização que é chamada a cada frame para atualizar a cena
     stats.update();
     if (simulaPausada) {
         renderer.render(scene, camera);
@@ -215,7 +248,7 @@ function render() {
     const deltaSegundos = clock.getDelta();
     const tempoAtualMs = performance.now();
 
-    cameraBox.position.z -= cameraZSpeed;
+    cameraBox.position.z -= cameraZSpeed; // Avança a cena no eixo Z usando a velocidade do modo atual (lenta, normal ou rápida).
 
     raycaster.setFromCamera(mouse, camera);
     const intersecoes = raycaster.intersectObject(planoInvisivel);
@@ -228,12 +261,12 @@ function render() {
         target.x = xTravado; target.y = yTravado;
     }
 
-    let diferencaX = target.x - aviaoContainer.position.x;
-    let anguloDesejado = (Math.abs(diferencaX) > limiarParadaRotacao) ? ((diferencaX > 0) ? -anguloMaxRotacao : anguloMaxRotacao) : 0;
+    let diferencaX = target.x - aviaoContainer.position.x; // T1: Calcula a diferença entre a posição alvo da câmera no eixo X e a posição atual do avião no eixo X, o que pode ser usado para determinar a direção e a intensidade do movimento do avião
+    let anguloDesejado = (Math.abs(diferencaX) > limiarParadaRotacao) ? ((diferencaX > 0) ? -anguloMaxRotacao : anguloMaxRotacao) : 0; // T1: Define o ângulo desejado de rotação do avião com base na direção da diferença no eixo X, usando o ângulo máximo de rotação para limitar a inclinação do avião
 
-    aviaoContainer.position.x += (target.x - aviaoContainer.position.x) * movimentoXYFactor;
-    aviaoContainer.position.y += (target.y - aviaoContainer.position.y) * movimentoXYFactor;
-    aviaoContainer.rotation.z += (anguloDesejado - aviaoContainer.rotation.z) * velocidadeInclinacao;
+    aviaoContainer.position.x += (target.x - aviaoContainer.position.x) * movimentoXYFactor; // Move o avião no eixo X com suavização definida pelo perfil de velocidade.
+    aviaoContainer.position.y += (target.y - aviaoContainer.position.y) * movimentoXYFactor; // Move o avião no eixo Y com o mesmo fator para manter resposta consistente.
+    aviaoContainer.rotation.z += (anguloDesejado - aviaoContainer.rotation.z) * velocidadeInclinacao; // T1: Atualiza a rotação do avião no eixo Z para criar um efeito de inclinação com base na posição do mouse, multiplicando pela velocidade de inclinação para controlar a intensidade do efeito
 
     camera.position.x += (aviaoContainer.position.x * 0.4 - camera.position.x) * 0.05;
     camera.position.y += (aviaoContainer.position.y * 0.4 - camera.position.y) * 0.05;
@@ -278,36 +311,37 @@ function render() {
         }
     });
 
-    // Atualização da Hitbox
-    aviaoContainer.getWorldPosition(posicaoAviaoMundo);
-    centroHitboxJogador.copy(posicaoAviaoMundo);
-    centroHitboxJogador.y += 0.8;
-    caixaJogador.setFromCenterAndSize(centroHitboxJogador, tamanhoHitboxJogador);
-    mira.getWorldPosition(posicaoMiraMundo);
+    // Atualização da hitbox do jogador e das posições usadas pelos tiros.
+    aviaoContainer.getWorldPosition(posicaoAviaoMundo); // Captura a posição real do avião no mundo para origem dos tiros do jogador.
+    centroHitboxJogador.copy(posicaoAviaoMundo); // Usa a posição do avião como base do centro da hitbox.
+    centroHitboxJogador.y += 0.8; // Ajusta levemente a altura para encaixar melhor a hitbox no corpo do avião.
+    caixaJogador.setFromCenterAndSize(centroHitboxJogador, tamanhoHitboxJogador); // Recalcula a caixa de colisão do jogador para este frame.
+    mira.getWorldPosition(posicaoMiraMundo); // Captura a posição global da mira para direcionar os disparos do jogador.
 
-    // Atualização dos Inimigos e Tiros
+    // Atualização dos inimigos: movimentação, lógica de disparo e estado de vida/destruição.
     sistemaInimigos.atualizar(
-        deltaSegundos,
-        tempoAtualMs,
-        () => aviaoContainer.getWorldPosition(posicaoJogadorParaInimigos).clone().add(new THREE.Vector3(0, 0.8, 0)),
+        deltaSegundos, // Delta time para manter movimento consistente independentemente do FPS.
+        tempoAtualMs, // Tempo atual usado para controlar cadência de tiro dos inimigos.
+        () => aviaoContainer.getWorldPosition(posicaoJogadorParaInimigos).clone().add(new THREE.Vector3(0, 0.8, 0)), // Função que devolve a posição alvo do jogador para os inimigos mirarem.
         (origemMundo, alvoMundo, idInimigoOrigem) => {
-            sistemaTiros.criarTiroInimigo(origemMundo, alvoMundo, idInimigoOrigem);
+            sistemaTiros.criarTiroInimigo(origemMundo, alvoMundo, idInimigoOrigem); // Callback chamado pelo sistema de inimigos para realmente criar o projétil.
         }
     );
 
+    // Atualização do sistema de tiros: cria tiros do jogador, move projéteis e resolve colisões.
     sistemaTiros.atualizar({
-        deltaSegundos,
-        tempoAtualMs,
-        posicaoAviaoMundo,
-        posicaoMiraMundo,
-        boxJogador: caixaJogador,
-        inimigosColisiveis: sistemaInimigos.obterInimigosColisiveis(),
-        aoAtingirInimigo: (idInimigo) => sistemaInimigos.marcarComoAtingido(idInimigo),
+        deltaSegundos, // Usado para deslocar projéteis com base no tempo entre frames.
+        tempoAtualMs, // Usado para respeitar intervalo entre tiros contínuos do jogador.
+        posicaoAviaoMundo, // Origem do tiro do jogador (posição do avião no mundo).
+        posicaoMiraMundo, // Alvo de direção do tiro do jogador (posição da mira no mundo).
+        boxJogador: caixaJogador, // Hitbox do jogador para detectar quando um tiro inimigo acerta.
+        inimigosColisiveis: sistemaInimigos.obterInimigosColisiveis(), // Lista de hitboxes dos inimigos para teste de impacto dos tiros do jogador.
+        aoAtingirInimigo: (idInimigo) => sistemaInimigos.marcarComoAtingido(idInimigo), // Quando um tiro acerta, avisa o sistema de inimigos para iniciar a animação de destruição.
     });
 
-    camera.lookAt(cameraBox.position.x, cameraBox.position.y, cameraBox.position.z - 30);
-    renderer.render(scene, camera);
-    requestAnimationFrame(render);
+    camera.lookAt(cameraBox.position.x, cameraBox.position.y, cameraBox.position.z - 30); // T1: Faz a câmera olhar para um ponto à frente dela, ajustando a posição de destino para que a câmera olhe para um ponto 30 unidades à frente no eixo Z, mantendo a mesma posição no eixo X e Y
+    renderer.render(scene, camera); // T1: Renderiza a cena usando a câmera, atualizando o que é exibido na tela com base nas mudanças feitas na cena e na posição da câmera
+    requestAnimationFrame(render); // T1: Solicita que a função de renderização seja chamada novamente no próximo frame, criando um loop de animação contínuo
 }
 
 render();

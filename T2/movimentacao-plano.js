@@ -303,7 +303,7 @@ function render() { // T1: Função de renderização que é chamada a cada fram
     if (intersecoes.length > 0) {
         let pontoLocal = cameraBox.worldToLocal(intersecoes[0].point.clone());
         let xTravado = THREE.MathUtils.clamp(pontoLocal.x, -22, 22);
-        let yTravado = THREE.MathUtils.clamp(pontoLocal.y, -22, 22);
+        let yTravado = THREE.MathUtils.clamp(pontoLocal.y, -10, 10);
         mira.position.x = xTravado; mira.position.y = yTravado;
         target.x = xTravado; target.y = yTravado;
     }

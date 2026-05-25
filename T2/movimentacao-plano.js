@@ -22,7 +22,7 @@ const cameraBox = new THREE.Object3D();
 cameraBox.add(camera);
 scene.add(cameraBox);
 
-initDefaultBasicLight(scene, true);
+// initDefaultBasicLight(scene, true);
 scene.fog = new THREE.Fog(new THREE.Color("pink"), 0.1, 600);
 
 const stats = new Stats();
@@ -93,6 +93,13 @@ for(let i = 0; i < 80; i++) {
     let arvore = dados.ambiente.children[1];
     if(arvore) {
         scene.add(arvore);
+        // Ativar sombras para a árvore (inclui todos os meshes filhos)
+        arvore.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
         arvore.position.x = (Math.random() - 0.5) * 800;
         arvore.position.z = -Math.random() * 800;
         arvore.position.y = getAltura(arvore.position.x, arvore.position.z) - 50;
@@ -108,6 +115,13 @@ aviao.position.set(0, 0, -25);
 aviao.rotateY(Math.PI / 2);
 cameraBox.add(aviaoContainer);
 
+aviao.traverse((child) => {
+  if (child.isMesh) {
+    child.castShadow = true;
+    child.receiveShadow = true;
+  }
+});
+
 const sistemaInimigos = new SistemaInimigos(scene, cameraBox);
 const sistemaTiros = new SistemaTiros(scene, camera);
 
@@ -119,6 +133,35 @@ const posicaoAviaoMundo = new THREE.Vector3();
 const posicaoMiraMundo = new THREE.Vector3();
 const posicaoJogadorParaInimigos = new THREE.Vector3();
 const centroHitboxJogador = new THREE.Vector3();
+
+const luzDirecional = new THREE.DirectionalLight(new THREE.Color("white"), 3.5);
+luzDirecional.castShadow = true;
+
+luzDirecional.shadow.mapSize.width = 2048;
+luzDirecional.shadow.mapSize.height = 2048;
+
+luzDirecional.shadow.camera.near = 0.1;
+luzDirecional.shadow.camera.far = 600; // Far alto para cobrir a diagonal da luz até o chão distante
+
+luzDirecional.shadow.camera.left = -300;
+luzDirecional.shadow.camera.right = 300;
+
+luzDirecional.shadow.camera.top = 300;
+luzDirecional.shadow.camera.bottom = -150;
+
+luzDirecional.shadow.camera.updateProjectionMatrix();
+// luzDirecional.shadow.bias = -0.0005; 
+// luzDirecional.shadow.normalBias = 0.05;
+
+scene.add(luzDirecional);
+
+const luzTarget = new THREE.Object3D(); // objeto para ser o alvo fixo da luz
+scene.add(luzTarget);
+luzDirecional.target = luzTarget;
+
+// Luz ambiente para suavizar as áreas sem sol direto
+const luzAmbiente = new THREE.AmbientLight(new THREE.Color("white"), 0.3);
+scene.add(luzAmbiente);
 
 // --- 4. CONTROLES E VARIÁVEIS GERAIS ---
 const target = new THREE.Vector3(0, 0, 0);
@@ -254,7 +297,7 @@ function render() {
         if (h > 60) {
             corTemp.copy(corRocha);
         } else if (h > 45) {
-            corTemp.lerpColors(corGrama, corRocha, (h - 35) / 15);
+            corTemp.lerpColors(corGrama, corRocha, (h - 45) / 15);
         } else if (h > 20) {
             corTemp.copy(corGrama);
         } else if (h > 10) {
@@ -269,6 +312,7 @@ function render() {
     pos.needsUpdate = true;
     col.needsUpdate = true;
     terreno.geometry.computeVertexNormals();
+    terreno.receiveShadow = true;
 
     listaArvores.forEach(a => {
         a.position.y = getAltura(a.position.x, a.position.z) - 50;
@@ -304,6 +348,19 @@ function render() {
         inimigosColisiveis: sistemaInimigos.obterInimigosColisiveis(),
         aoAtingirInimigo: (idInimigo) => sistemaInimigos.marcarComoAtingido(idInimigo),
     });
+
+    if (scene.fog && luzDirecional.castShadow) {// volume de visualização adaptativo ao fog    
+    // Multiplicando por 1.2 e 0.6 para cobrir o horizonte antes dele surgir na neblina
+    luzDirecional.shadow.camera.top = scene.fog.far * 1.2;
+    luzDirecional.shadow.camera.bottom = -scene.fog.far * 0.6;
+    luzDirecional.shadow.camera.updateProjectionMatrix();
+    
+    let alcanceVisaoZ = scene.fog.far * 0.4; // centraliza target na região média visível
+    // coloca target um pouco para a direita para cobrir árvores laterais
+    luzTarget.position.set(cameraBox.position.x + 50, cameraBox.position.y - 30, cameraBox.position.z - alcanceVisaoZ);
+
+    luzDirecional.position.set(luzTarget.position.x + 150, cameraBox.position.y + 180, luzTarget.position.z + 100);
+  }
 
     camera.lookAt(cameraBox.position.x, cameraBox.position.y, cameraBox.position.z - 30);
     renderer.render(scene, camera);

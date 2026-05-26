@@ -8,7 +8,7 @@ const QUANTIDADE_INIMIGOS_ATIVOS = 2;
 // intervalo entre disparos do inimigo (ms) -> 3 tiros por segundo
 const CADENCIA_TIRO_INIMIGO_MS = 1000;
 // limite lateral para entrada e saida dos inimigos
-const LIMITE_LATERAL_X = 26;
+const LIMITE_LATERAL_X = 90;
 // faixa de velocidade horizontal dos inimigos
 const VELOCIDADE_MINIMA_INIMIGO = 7;
 const VELOCIDADE_MAXIMA_INIMIGO = 11;

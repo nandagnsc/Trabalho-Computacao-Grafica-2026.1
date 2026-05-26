@@ -7,7 +7,6 @@ import { SistemaInimigos } from './inimigos.js';
 import { SistemaTiros } from './tiros.js';
 import GUI from '../libs/util/dat.gui.module.js';
 
-// --- 1. SETUP DA CENA ---
 const scene = new THREE.Scene(); // T1: Cria a cena principal
 const clock = new THREE.Clock(); // T1: Cria um relógio para controlar o tempo entre os frames
 const renderer = initRenderer(); // T1: Função de visualização em util/utils
@@ -24,7 +23,7 @@ scene.add(cameraBox); // T1: Adiciona o cameraBox à cena
 
 scene.fog = new THREE.Fog(new THREE.Color("pink"), 0.1, 600); // T1: Adiciona neblina à cena para criar um efeito de profundidade, usando a mesma cor do fundo para que os objetos desapareçam gradualmente à medida que se afastam da câmera
 
-const stats = new Stats();
+const stats = new Stats(); // T1: Cria um objeto de estatísticas para monitorar o desempenho do jogo, como frames por segundo (FPS), tempo de renderização e uso de memória, que pode ser útil para otimizar o jogo e garantir uma experiência suave para o jogador.
 const container = document.getElementById('container');
 if (container) container.appendChild(stats.dom);
 
@@ -65,29 +64,30 @@ const Perlin = new function() {
     };
 };
 
-function getAltura(x, z) {
+
+function getAltura(x, z) { // Função para calcular a altura do terreno usando Perlin Noise, que gera um valor de altura baseado na posição global do vértice, permitindo que o terreno tenha variações naturais e realistas à medida que a câmera avança.
     let nx = x * 0.005, nz = z * 0.005;
     let h = (Perlin.noise(nx, nz) * 40) + (Perlin.noise(nx*3, nz*3) * 12) + (Perlin.noise(nx*8, nz*8) * 4);
     return h + 30;
 }
 
-const largura = 1000, profundidade = 1000, divisoes = 150;
+const largura = 2000, profundidade = 1000, divisoes = 150; // Define as dimensões e a resolução do terreno, onde largura e profundidade controlam o tamanho total do plano do terreno, e divisoes controla quantos segmentos o plano terá, afetando a suavidade das variações de altura e o desempenho do jogo.
 const geoTerreno = new THREE.PlaneGeometry(largura, profundidade, divisoes, divisoes);
 geoTerreno.rotateX(-Math.PI / 2);
 geoTerreno.setAttribute('color', new THREE.BufferAttribute(new Float32Array(geoTerreno.attributes.position.count * 3), 3));
 
-const matTerreno = new THREE.MeshStandardMaterial({
+const matTerreno = new THREE.MeshStandardMaterial({ // Material do terreno, usando as cores dos vértices para criar um efeito de gradiente que varia com a altura, dando uma aparência mais natural e variada ao solo, onde áreas mais altas podem parecer rochosas e áreas mais baixas podem parecer gramadas ou aquáticas.
     vertexColors: true,
     wireframe: false,
     side: THREE.DoubleSide,
     flatShading: true
 });
-const terreno = new THREE.Mesh(geoTerreno, matTerreno);
+const terreno = new THREE.Mesh(geoTerreno, matTerreno); // Cria o mesh do terreno usando a geometria e o material definidos, que será adicionado à cena para formar o chão do ambiente de jogo, permitindo que a câmera e os objetos interajam com ele, e que as variações de altura e cor sejam visíveis durante a renderização.
 terreno.position.y = -50;
 scene.add(terreno);
 
-let listaArvores = [];
-for(let i = 0; i < 80; i++) {
+let listaArvores = []; // Lista para armazenar as árvores adicionadas ao cenário, permitindo que elas sejam gerenciadas e renderizadas corretamente, e que possam ser acessadas posteriormente para possíveis interações ou efeitos visuais relacionados às árvores no ambiente de jogo.
+for(let i = 0; i < 150; i++) {
     let dados = criaCenario(0, 0, 0, 'verao');
     let arvore = dados.ambiente.children[1];
     if(arvore) {
@@ -106,7 +106,6 @@ for(let i = 0; i < 80; i++) {
     }
 }
 
-// --- 3. AVIÃO, INIMIGOS E TIROS ---
 const aviao = criarAviao();
 const aviaoContainer = new THREE.Object3D(); // T1: Cria um objeto vazio (aviaoContainer) para conter o avião, permitindo que o avião seja controlado como um grupo, facilitando a aplicação de transformações como movimento e rotação ao avião como um todo, sem afetar diretamente a posição ou rotação individual do modelo do avião.
 aviaoContainer.add(aviao); // T1: Adiciona o avião a um objeto vazio (aviaoContainer) para facilitar o controle do movimento do avião
@@ -163,7 +162,6 @@ luzDirecional.target = luzTarget;
 const luzAmbiente = new THREE.AmbientLight(new THREE.Color("white"), 0.3);
 scene.add(luzAmbiente);
 
-// --- 4. CONTROLES E VARIÁVEIS GERAIS ---
 const target = new THREE.Vector3(0, 0, 0); // T1: Variável para armazenar a posição alvo para a câmera, que será atualizada com base na posição do mouse
 let simulaPausada = false;
 
@@ -277,13 +275,13 @@ controls.show();
 const gui = new GUI();
 gui.add(scene.fog, 'far', 100, 750).name("Neblina (Fog)");
 
-const corRocha = new THREE.Color(0x654321);
+const corRocha = new THREE.Color(0x654321); // cor base para rochas, usada para criar um gradiente de cor no terreno que varia com a altura, dando uma aparência mais natural e variada ao solo, onde áreas mais altas podem parecer rochosas e áreas mais baixas podem parecer gramadas ou aquáticas.
 const corGrama = new THREE.Color(0x2D5A27);
 const corVale = new THREE.Color(0x203B15);
 const corAgua = new THREE.Color(0x0077BE);
-const corTemp = new THREE.Color();
+const corTemp = new THREE.Color(); // cor auxiliar para calcular as cores do terreno sem criar objetos extras, usada para interpolar entre as cores base (rocha, grama, água) com base na altura do terreno, permitindo que cada vértice do terreno tenha uma cor que corresponda à sua elevação, criando um efeito visual mais rico e realista.
 
-// --- 5. LOOP DE RENDERIZAÇÃO ---
+
 function render() { // T1: Função de renderização que é chamada a cada frame para atualizar a cena
     stats.update();
     if (simulaPausada) {
@@ -319,26 +317,26 @@ function render() { // T1: Função de renderização que é chamada a cada fram
     aviaoContainer.rotation.z += (anguloDesejado - aviaoContainer.rotation.z) * velocidadeInclinacao; // T1: Atualiza a rotação do avião no eixo Z para criar um efeito de inclinação com base na posição do mouse, multiplicando pela velocidade de inclinação para controlar a intensidade do efeito
     aviaoContainer.rotation.x += (anguloDesejadoX - aviaoContainer.rotation.x) * velocidadeInclinacaoX; // T2: Atualiza a rotação do avião no eixo X para criar um efeito de inclinação com base na posição do mouse, multiplicando pela velocidade de inclinação para controlar a intensidade do efeito
 
-    camera.position.x += (aviaoContainer.position.x * 0.4 - camera.position.x) * 0.05;
-    camera.position.y += (aviaoContainer.position.y * 0.4 - camera.position.y) * 0.05;
+    camera.position.x += (aviaoContainer.position.x * 0.4 - camera.position.x) * 0.05; // Move a câmera suavemente para seguir o avião no eixo X, usando um fator de 0.4 para que a câmera siga o avião parcialmente, criando um efeito de "arrasto" onde a câmera não fica exatamente na posição do avião, mas se move em direção a ela de forma suave.
+    camera.position.y += (aviaoContainer.position.y * 0.4 - camera.position.y) * 0.05; // Move a câmera suavemente para seguir o avião no eixo Y, usando o mesmo fator de 0.4 para manter a consistência do efeito de arrasto, permitindo que a câmera se ajuste à posição do avião sem ficar rígida, o que contribui para uma sensação de movimento mais fluida e natural.
 
     // Atualização do Terreno Procedural
     terreno.position.z = cameraBox.position.z - 250;
 
-    const pos = terreno.geometry.attributes.position;
-    const col = terreno.geometry.attributes.color;
+    const pos = terreno.geometry.attributes.position; // Acessa os atributos de posição do terreno para modificar a altura dos vértices com base na função de Perlin Noise, criando um terreno que se ajusta dinamicamente à medida que a câmera avança, dando a impressão de um mundo infinito e variado.
+    const col = terreno.geometry.attributes.color; // Acessa os atributos de cor do terreno para modificar as cores dos vértices com base na altura, criando um gradiente de cor que varia com a elevação do terreno, onde áreas mais altas podem parecer rochosas e áreas mais baixas podem parecer gramadas ou aquáticas, aumentando a riqueza visual do ambiente.
 
-    for (let i = 0; i < pos.count; i++) {
+    for (let i = 0; i < pos.count; i++) { // Itera sobre cada vértice do terreno para atualizar sua altura e cor com base na função de Perlin Noise, criando um terreno que se ajusta dinamicamente à medida que a câmera avança, dando a impressão de um mundo infinito e variado.
         let xGlobal = pos.getX(i) + terreno.position.x;
         let zGlobal = pos.getZ(i) + terreno.position.z;
 
-        let h = getAltura(xGlobal, zGlobal);
+        let h = getAltura(xGlobal, zGlobal); // Calcula a altura do terreno para as coordenadas globais do vértice usando a função de Perlin Noise, que gera um valor de altura baseado na posição global do vértice, permitindo que o terreno tenha variações naturais e realistas à medida que a câmera avança.
         pos.setY(i, h);
 
-        if (h > 60) {
-            corTemp.copy(corRocha);
+        if (h > 60) { // Define a cor do vértice com base na altura, criando um gradiente de cor que varia com a elevação do terreno, onde áreas mais altas podem parecer rochosas e áreas mais baixas podem parecer gramadas ou aquáticas, aumentando a riqueza visual do ambiente.
+            corTemp.copy(corRocha); // Se a altura for maior que 60, o vértice é considerado parte de uma rocha e recebe a cor de rocha.
         } else if (h > 45) {
-            corTemp.lerpColors(corGrama, corRocha, (h - 45) / 15);
+            corTemp.lerpColors(corGrama, corRocha, (h - 35) / 10);
         } else if (h > 20) {
             corTemp.copy(corGrama);
         } else if (h > 10) {
@@ -347,16 +345,16 @@ function render() { // T1: Função de renderização que é chamada a cada fram
             corTemp.copy(corAgua);
         }
 
-        col.setXYZ(i, corTemp.r, corTemp.g, corTemp.b);
+        col.setXYZ(i, corTemp.r, corTemp.g, corTemp.b); // Define a cor do vértice com base na altura, criando um gradiente de cor que varia com a elevação do terreno, onde áreas mais altas podem parecer rochosas e áreas mais baixas podem parecer gramadas ou aquáticas, aumentando a riqueza visual do ambiente.
     }
 
-    pos.needsUpdate = true;
-    col.needsUpdate = true;
-    terreno.geometry.computeVertexNormals();
-    terreno.receiveShadow = true;
+    pos.needsUpdate = true; // Informa ao Three.js que os atributos de posição foram modificados e precisam ser atualizados no buffer da GPU para refletir as mudanças na geometria do terreno, garantindo que as alterações de altura sejam visíveis na renderização.
+    col.needsUpdate = true; // Informa ao Three.js que os atributos de cor foram modificados e precisam ser atualizados no buffer da GPU para refletir as mudanças nas cores dos vértices do terreno, garantindo que as alterações de cor sejam visíveis na renderização.
+    terreno.geometry.computeVertexNormals(); // Recalcula as normais da geometria do terreno após modificar as alturas dos vértices, garantindo que a iluminação e as sombras sejam calculadas corretamente com base na nova topografia do terreno, o que é essencial para manter a aparência visual realista à medida que o terreno se ajusta dinamicamente.
+    terreno.receiveShadow = true; // Permite que o terreno receba sombras, o que é importante para criar um ambiente visualmente rico e realista, especialmente com a iluminação direcional configurada para lançar sombras, garantindo que as sombras dos objetos, como árvores e inimigos, sejam projetadas corretamente no terreno.
 
-    listaArvores.forEach(a => {
-        a.position.y = getAltura(a.position.x, a.position.z) - 50;
+    listaArvores.forEach(a => { // Atualiza a posição das árvores para que se ajustem à altura do terreno, garantindo que as árvores estejam sempre posicionadas corretamente em relação à topografia do terreno, criando um ambiente mais coeso e realista à medida que a câmera avança.
+        a.position.y = getAltura(a.position.x, a.position.z) - 50; // Ajusta a posição Y da árvore com base na altura do terreno para garantir que ela esteja "plantada" no solo, usando a função de Perlin Noise para obter a altura do terreno nas coordenadas X e Z da árvore, e subtraindo 50 para alinhar a base da árvore com o terreno.
         if (a.position.z > cameraBox.position.z + 50) {
             a.position.z = cameraBox.position.z - 600 - Math.random() * 200;
             a.position.x = cameraBox.position.x + (Math.random() - 0.5) * 800;

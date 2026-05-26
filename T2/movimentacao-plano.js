@@ -37,30 +37,29 @@ const planoInvisivel = new THREE.Mesh(
 planoInvisivel.position.set(0, 0, -35);
 cameraBox.add(planoInvisivel);
 
-const mira = new THREE.Object3D();
-const miraMat = new THREE.MeshBasicMaterial({ color: 'red', side: THREE.DoubleSide, depthTest: false });
-const miraMesh1 = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.4, 16), miraMat); miraMesh1.renderOrder = 1;
+const mira = new THREE.Object3D(); // T1: Cria um objeto para a mira do jogador, que será composta por vários meshes para formar uma mira visualmente clara e distinta, permitindo que o jogador tenha um ponto de referência visual para onde os tiros serão disparados, melhorando a precisão e a experiência de jogo. A mira é posicionada à frente da câmera para que esteja sempre visível e alinhada com a direção de disparo do jogador.
+const miraMat = new THREE.MeshBasicMaterial({ color: 'red', side: THREE.DoubleSide, depthTest: false }); // Material básico para a mira, usando a cor vermelha para garantir que seja facilmente visível contra o fundo e os objetos do jogo, e configurado para renderizar dos dois lados e ignorar o teste de profundidade para que a mira seja sempre visível, mesmo quando estiver sobreposta a outros objetos na cena.
+const miraMesh1 = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.4, 16), miraMat); miraMesh1.renderOrder = 1; // Cria o primeiro mesh da mira, que é um anel circular, usando uma geometria de anel para criar um ponto de referência visual claro para o centro da mira, e define a ordem de renderização para garantir que ele seja desenhado por cima de outros objetos, mantendo a mira sempre visível para o jogador.
 const miraMesh2 = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.3), miraMat); miraMesh2.renderOrder = 1; miraMesh2.position.set(0, 0.45, 0);
 const miraMesh3 = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.3), miraMat); miraMesh3.renderOrder = 1; miraMesh3.position.set(0, -0.45, 0);
 const miraMesh4 = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.1), miraMat); miraMesh4.renderOrder = 1; miraMesh4.position.set(0.45, 0, 0);
 const miraMesh5 = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.1), miraMat); miraMesh5.renderOrder = 1; miraMesh5.position.set(-0.45, 0, 0);
-mira.add(miraMesh1, miraMesh2, miraMesh3, miraMesh4, miraMesh5);
-mira.position.set(0, 0, -35);
-cameraBox.add(mira);
+mira.add(miraMesh1, miraMesh2, miraMesh3, miraMesh4, miraMesh5); // Adiciona os meshes da mira ao objeto da mira, formando uma mira composta por um anel central e linhas que se estendem para fora, criando um ponto de referência visual claro para o jogador, que indica onde os tiros serão disparados, melhorando a precisão e a experiência de jogo. A posição da mira é definida para estar à frente da câmera, garantindo que esteja sempre visível e alinhada com a direção de disparo do jogador.
+mira.position.set(0, 0, -35); // Posiciona a mira à frente da câmera para que esteja sempre visível e alinhada com a direção de disparo do jogador, permitindo que o jogador tenha um ponto de referência visual claro para onde os tiros serão disparados, melhorando a precisão e a experiência de jogo.
+cameraBox.add(mira); // Adiciona a mira ao cameraBox para que ela se mova junto com a câmera, garantindo que a mira esteja sempre alinhada com a direção de disparo do jogador, permitindo que o jogador tenha um ponto de referência visual claro para onde os tiros serão disparados, melhorando a precisão e a experiência de jogo.
 
-// --- 2. PERLIN NOISE & TERRENO ---
-const Perlin = new function() {
-    this.p = new Uint8Array(512); const p = new Uint8Array(256);
-    for(let i=0; i<256; i++) p[i] = i; for(let i=255; i>0; i--) { const j = Math.floor(Math.random() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
-    for(let i=0; i<512; i++) this.p[i] = p[i & 255];
-    this.fade = t => t * t * t * (t * (t * 6 - 15) + 10);
-    this.lerp = (t, a, b) => a + t * (b - a);
-    this.grad = (hash, x, y) => { const h = hash & 15; const u = h < 8 ? x : y; const v = h < 4 ? y : h === 12 || h === 14 ? x : 0; return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v); };
-    this.noise = (x, y) => {
-        const X = Math.floor(x) & 255, Y = Math.floor(y) & 255; x -= Math.floor(x); y -= Math.floor(y);
-        const u = this.fade(x), v = this.fade(y);
-        const a = this.p[X] + Y, aa = this.p[a], ab = this.p[a + 1], b = this.p[X + 1] + Y, ba = this.p[b], bb = this.p[b + 1];
-        return this.lerp(v, this.lerp(u, this.grad(this.p[aa], x, y), this.grad(this.p[ba], x - 1, y)), this.lerp(u, this.grad(this.p[ab], x, y - 1), this.grad(this.p[bb], x - 1, y - 1)));
+const Perlin = new function() { // Implementação de Perlin Noise para gerar o terreno procedural, que é uma técnica de geração de ruído que cria variações suaves e naturais, ideal para criar terrenos realistas em jogos. Esta implementação inclui funções para gerar o ruído, bem como um gradiente de permutação para garantir que o ruído seja consistente e sem padrões repetitivos óbvios.
+    this.p = new Uint8Array(512); const p = new Uint8Array(256); // Gera um array de permutação aleatória para o Perlin Noise, que é usado para criar variações suaves e naturais no terreno procedural, garantindo que o ruído seja consistente e sem padrões repetitivos óbvios, o que é essencial para criar um ambiente visualmente interessante e realista à medida que a câmera avança.
+    for(let i=0; i<256; i++) p[i] = i; for(let i=255; i>0; i--) { const j = Math.floor(Math.random() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; } // Embaralha o array de permutação usando o algoritmo de Fisher-Yates para garantir que o Perlin Noise seja consistente e sem padrões repetitivos óbvios, o que é essencial para criar um ambiente visualmente interessante e realista à medida que a câmera avança.
+    for(let i=0; i<512; i++) this.p[i] = p[i & 255]; // Duplica o array de permutação para evitar overflow, garantindo que o Perlin Noise seja consistente e sem padrões repetitivos óbvios, o que é essencial para criar um ambiente visualmente interessante e realista à medida que a câmera avança.
+    this.fade = t => t * t * t * (t * (t * 6 - 15) + 10); // Função de
+    this.lerp = (t, a, b) => a + t * (b - a); // Função de interpolação linear usada
+    this.grad = (hash, x, y) => { const h = hash & 15; const u = h < 8 ? x : y; const v = h < 4 ? y : h === 12 || h === 14 ? x : 0; return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v); }; // Função de gradiente que calcula a contribuição do gradiente para o Perlin Noise com base no hash e nas coordenadas x e y, criando variações suaves e naturais no terreno procedural, garantindo que o ruído seja consistente e sem padrões repetitivos óbvios, o que é essencial para criar um ambiente visualmente interessante e realista à medida que a câmera avança.
+    this.noise = (x, y) => { // Função principal de geração de Perlin Noise que calcula o valor do ruído para as coordenadas x e y, usando a função de fade, interpolação linear e gradiente para criar variações suaves e naturais no terreno procedural, garantindo que o ruído seja consistente e sem padrões repetitivos óbvios, o que é essencial para criar um ambiente visualmente interessante e realista à medida que a câmera avança.
+        const X = Math.floor(x) & 255, Y = Math.floor(y) & 255; x -= Math.floor(x); y -= Math.floor(y); // Calcula as coordenadas relativas dentro da grade unitária e aplica a função de fade
+        const u = this.fade(x), v = this.fade(y); // Calcula os hashes para os quatro cantos da grade unitária e obtém as contribuições do gradiente para cada canto, depois interpola entre eles usando a função de fade para criar variações suaves e naturais no terreno procedural, garantindo que o ruído seja consistente e sem padrões repetitivos óbvios, o que é essencial para criar um ambiente visualmente interessante e realista à medida que a câmera avança.
+        const a = this.p[X] + Y, aa = this.p[a], ab = this.p[a + 1], b = this.p[X + 1] + Y, ba = this.p[b], bb = this.p[b + 1]; // Interpola entre as contribuições do gradiente para os quatro cantos da grade unitária usando a função de fade para criar variações suaves e naturais no terreno procedural, garantindo que o ruído seja consistente e sem padrões repetitivos óbvios, o que é essencial para criar um ambiente visualmente interessante e realista à medida que a câmera avança.
+        return this.lerp(v, this.lerp(u, this.grad(this.p[aa], x, y), this.grad(this.p[ba], x - 1, y)), this.lerp(u, this.grad(this.p[ab], x, y - 1), this.grad(this.p[bb], x - 1, y - 1))); // Retorna o valor final do Perlin Noise para as coordenadas x e y, que é usado para criar variações suaves e naturais no terreno procedural, garantindo que o ruído seja consistente e sem padrões repetitivos óbvios, o que é essencial para criar um ambiente visualmente interessante e realista à medida que a câmera avança.
     };
 };
 

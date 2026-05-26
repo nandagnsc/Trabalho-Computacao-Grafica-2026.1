@@ -108,18 +108,33 @@ export class SistemaTiros {
   }
 
   _criarTiroJogador(origemMundo, alvoMundo) {
-    // calcula a direcao do tiro do jogador ate a mira
-    const direcao = new THREE.Vector3().subVectors(alvoMundo, origemMundo).normalize();
+    // guarda a posicao real da camera no mundo para usar como referencia visual
+    const posicaoCameraMundo = new THREE.Vector3();
+    this.camera.getWorldPosition(posicaoCameraMundo);
 
-    // cria um plano retangular com cor solida para representar o tiro
+    // calcula a direcao da visao do jogador indo da camera ate a mira
+    const direcaoVisao = new THREE.Vector3().subVectors(alvoMundo, posicaoCameraMundo).normalize();
+
+    // projeta um ponto bem mais distante na mesma linha da mira
+    const distanciaFoco = 100;
+    const alvoDistante = new THREE.Vector3().copy(posicaoCameraMundo).addScaledVector(direcaoVisao, distanciaFoco);
+
+    // calcula a direcao final do tiro saindo do aviao em direcao ao ponto distante da mira
+    const direcao = new THREE.Vector3().subVectors(alvoDistante, origemMundo).normalize();
+
+    // cria o mesh visual do tiro do jogador usando a geometria e o material definidos acima
     const tiro = new THREE.Mesh(GEOMETRIA_TIRO_JOGADOR, MATERIAL_TIRO_JOGADOR.clone());
-    tiro.position.copy(origemMundo).addScaledVector(direcao, 4); // posiciona um pouco a frente da origem
-    // faz o tiro sempre ficar virado para a camera
-    tiro.lookAt(this.camera.position);
+    // posiciona o tiro um pouco a frente da origem para evitar sobreposicao com o aviao
+    tiro.position.copy(origemMundo).addScaledVector(direcao, 4);
 
-    // adiciona o tiro na cena e no controle de tiros ativos
+    // orienta o tiro para apontar visualmente na mesma direcao do disparo
+    const destino = origemMundo.clone().add(direcao);
+    tiro.lookAt(destino);
+
+    // adiciona o tiro na cena para ele aparecer no render
     this.cena.add(tiro);
 
+    // registra o tiro no array de tiros ativos do jogador para atualizar depois
     this.tirosJogador.push({
       objeto: tiro,
       direcao,

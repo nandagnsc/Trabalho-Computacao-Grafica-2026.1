@@ -165,8 +165,8 @@ export class SistemaTiros {
 
       // avanca o tiro na direcao calculada e atualiza a orientacao
       tiro.objeto.position.addScaledVector(tiro.direcao, deslocamento);
-      tiro.objeto.lookAt(this.camera.position);
-      tiro.distanciaPercorrida += deslocamento;
+      //tiro.objeto.lookAt(this.camera.position);
+      //tiro.distanciaPercorrida += deslocamento;
 
       let removeuTiro = false;
       // bounding box do tiro para detectar colisao com inimigos

@@ -83,7 +83,7 @@ export class SistemaTiros {
   }
 
   criarTiroInimigo(origemMundo, alvoMundo, idInimigoOrigem) {
-    // calcula a direcao do inimigo ate o jogador
+    // calcula a direcao do inimigo ate o jogador (vetor normalizado)
     const direcao = new THREE.Vector3().subVectors(alvoMundo, origemMundo).normalize();
 
     // cria o cone alongado que representa o tiro inimigo
@@ -113,7 +113,7 @@ export class SistemaTiros {
 
     // cria um plano retangular com cor solida para representar o tiro
     const tiro = new THREE.Mesh(GEOMETRIA_TIRO_JOGADOR, MATERIAL_TIRO_JOGADOR.clone());
-    tiro.position.copy(origemMundo).addScaledVector(direcao, 4);
+    tiro.position.copy(origemMundo).addScaledVector(direcao, 4); // posiciona um pouco a frente da origem
     // faz o tiro sempre ficar virado para a camera
     tiro.lookAt(this.camera.position);
 
@@ -174,9 +174,9 @@ export class SistemaTiros {
 
       for (const inimigo of inimigosColisiveis) {
         if (this._auxBoxTiro.intersectsBox(inimigo.box3)) {
-          aoAtingirInimigo(inimigo.id);
-          this.cena.remove(tiro.objeto);
-          this.tirosJogador.splice(i, 1);
+          aoAtingirInimigo(inimigo.id); // notifica sistema de inimigos
+          this.cena.remove(tiro.objeto); // remove visualmente
+          this.tirosJogador.splice(i, 1); // remove do array
           removeuTiro = true;
           break;
         }

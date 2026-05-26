@@ -5,7 +5,7 @@ import { GLTFLoader } from '../build/jsm/loaders/GLTFLoader.js';
 const CAMINHO_MODELO_INIMIGO = '../assets/models/drone.glb';
 // numero de inimigos ativos ao mesmo tempo
 const QUANTIDADE_INIMIGOS_ATIVOS = 2;
-// intervalo entre disparos do inimigo (ms) -> 3 tiros por segundo
+// intervalo entre disparos do inimigo (ms) -> 1 tiros por segundo
 const CADENCIA_TIRO_INIMIGO_MS = 1000;
 // limite lateral para entrada e saida dos inimigos
 const LIMITE_LATERAL_X = 90;
@@ -16,8 +16,8 @@ const VELOCIDADE_MAXIMA_INIMIGO = 11;
 // faixas de posicao para variar altura e profundidade
 const ALTURA_MINIMA = -8;
 const ALTURA_MAXIMA = 10;
-const Z_MINIMO = -70;
-const Z_MAXIMO = -30;
+const Z_MINIMO = -90;
+const Z_MAXIMO = -60;
 
 function numeroAleatorio(minimo, maximo) {
   // retorna um valor aleatorio dentro do intervalo informado
@@ -33,9 +33,9 @@ function prepararMateriaisParaAnimacao(opcaoInimigo) {
 
     const listaMateriais = Array.isArray(no.material) ? no.material : [no.material];
     listaMateriais.forEach((material) => {
-      material.transparent = true;
-      material.depthWrite = false;
-      materiais.push(material);
+      material.transparent = true; // habilita opacidade para animacoes
+      material.depthWrite = false; // evita z-fighting durante fade
+      materiais.push(material); // guarda referencia para controlar opacity
     });
   });
 

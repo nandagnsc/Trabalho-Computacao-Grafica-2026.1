@@ -30,7 +30,7 @@ if (container) container.appendChild(stats.dom);
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-const planoInvisivel = new THREE.Mesh(
+const planoInvisivel = new THREE.Mesh( // Cria um plano invisível para detectar os cliques do mouse, que é posicionado à frente da câmera para que possa ser usado como um alvo para o raycaster, permitindo que o jogador clique em qualquer lugar da tela para disparar tiros na direção do clique, melhorando a interatividade e a experiência de jogo.
     new THREE.PlaneGeometry(80, 60),
     new THREE.MeshBasicMaterial({ visible: false })
 );
@@ -112,7 +112,7 @@ aviaoContainer.position.set(0, 0, -25); // T1: Define a posição inicial do avi
 aviao.rotateY(Math.PI / 2); // T1: Gira o avião para que ele ltado para a direção correta (para frente)
 cameraBox.add(aviaoContainer); // T1: Adiciona o avião à cena
 
-aviao.traverse((child) => {
+aviao.traverse((child) => { // Ativa sombras para o avião (inclui todos os meshes filhos)
   if (child.isMesh) {
     child.castShadow = true;
     child.receiveShadow = true;
@@ -132,22 +132,22 @@ const posicaoMiraMundo = new THREE.Vector3(); // Guarda a posição global da mi
 const posicaoJogadorParaInimigos = new THREE.Vector3(); // Vetor auxiliar com a posição que os inimigos usam para mirar no jogador.
 const centroHitboxJogador = new THREE.Vector3(); // Vetor auxiliar para montar o centro da hitbox do jogador em cada frame.
 
-const luzDirecional = new THREE.DirectionalLight(new THREE.Color("white"), 3.5);
+const luzDirecional = new THREE.DirectionalLight(new THREE.Color("white"), 3.5); // Luz direcional para simular a luz do sol, que é a principal fonte de iluminação na cena
 luzDirecional.castShadow = true;
 
-luzDirecional.shadow.mapSize.width = 2048;
-luzDirecional.shadow.mapSize.height = 2048;
+luzDirecional.shadow.mapSize.width = 2048; // Aumenta a resolução do mapa de sombras para melhorar a qualidade das sombras projetadas pela luz direcional, tornando-as mais nítidas 
+luzDirecional.shadow.mapSize.height = 2048; 
 
-luzDirecional.shadow.camera.near = 0.1;
+luzDirecional.shadow.camera.near = 0.1; // Define a distância mínima para o mapa de sombras da luz direcional, garantindo que objetos muito próximos à luz sejam renderizados corretamente nas sombras, evitando artefatos visuais e melhorando a qualidade geral das sombras projetadas pela luz direcional.
 luzDirecional.shadow.camera.far = 600; // Far alto para cobrir a diagonal da luz até o chão distante
 
 luzDirecional.shadow.camera.left = -300;
-luzDirecional.shadow.camera.right = 300;
+luzDirecional.shadow.camera.right = 300; // Define os limites esquerdo e direito do mapa de sombras da luz direcional, garantindo que a área iluminada pela luz seja coberta adequadamente pelo mapa de sombras, o que é essencial para criar sombras realistas e evitar que objetos importantes fiquem sem sombra ou com sombras cortadas.
 
 luzDirecional.shadow.camera.top = 300;
-luzDirecional.shadow.camera.bottom = -150;
+luzDirecional.shadow.camera.bottom = -150; // Define os limites superior e inferior do mapa de sombras da luz direcional, garantindo que a área iluminada pela luz seja coberta adequadamente pelo mapa de sombras, o que é essencial para criar sombras realistas e evitar que objetos importantes fiquem sem sombra ou com sombras cortadas. O limite inferior é menor para evitar que o céu distante receba sombras, o que pode causar artefatos visuais indesejados.
 
-luzDirecional.shadow.camera.updateProjectionMatrix();
+luzDirecional.shadow.camera.updateProjectionMatrix();// Atualiza a matriz de projeção da câmera de sombras para garantir que as alterações nos parâmetros do mapa de sombras sejam aplicadas corretamente, o que é essencial para criar sombras realistas e evitar artefatos visuais causados por uma configuração incorreta do mapa de sombras.
 // luzDirecional.shadow.bias = -0.0005; 
 // luzDirecional.shadow.normalBias = 0.05;
 
@@ -283,26 +283,26 @@ const corTemp = new THREE.Color(); // cor auxiliar para calcular as cores do ter
 
 function render() { // T1: Função de renderização que é chamada a cada frame para atualizar a cena
     stats.update();
-    if (simulaPausada) {
+    if (simulaPausada) { // Se a simulação estiver pausada, apenas renderiza a cena sem atualizar a lógica do jogo, permitindo que o jogador veja o estado atual do jogo enquanto está pausado, mas sem que nada se mova ou mude até que ele retome a simulação
         renderer.render(scene, camera);
         requestAnimationFrame(render);
         return;
     }
 
-    const deltaSegundos = clock.getDelta();
-    const tempoAtualMs = performance.now();
+    const deltaSegundos = clock.getDelta(); // Calcula o tempo em segundos desde o último frame, que é usado para atualizar os sistemas de inimigos e tiros 
+    const tempoAtualMs = performance.now(); // Obtém o tempo atual em milissegundos para usar na lógica de spawn e comportamento dos inimigos
 
     cameraBox.position.z -= cameraZSpeed; // Avança a cena no eixo Z usando a velocidade do modo atual (lenta, normal ou rápida).
 
     raycaster.setFromCamera(mouse, camera);
     const intersecoes = raycaster.intersectObject(planoInvisivel);
 
-    if (intersecoes.length > 0) {
-        let pontoLocal = cameraBox.worldToLocal(intersecoes[0].point.clone());
+    if (intersecoes.length > 0) { // Se houver interseção com o plano invisível, atualiza a posição da mira e o alvo da câmera para seguir o mouse, permitindo que o jogador controle a direção do avião e onde os tiros serão disparados. A posição do mouse é convertida para as coordenadas locais do plano invisível para garantir que a mira e o alvo da câmera se movam corretamente em relação à posição do avião.
+        let pontoLocal = cameraBox.worldToLocal(intersecoes[0].point.clone()); // Converte a posição global do ponto de interseção para as coordenadas locais do cameraBox, o que é necessário para atualizar a posição da mira e o alvo da câmera de forma correta em relação ao avião, garantindo que eles se movam de acordo com a posição do mouse dentro do espaço do jogo.
         let xTravado = THREE.MathUtils.clamp(pontoLocal.x, -22, 22);
         let yTravado = THREE.MathUtils.clamp(pontoLocal.y, -10, 10);
-        mira.position.x = xTravado; mira.position.y = yTravado;
-        target.x = xTravado; target.y = yTravado;
+        mira.position.x = xTravado; mira.position.y = yTravado; // Atualiza a posição da mira para seguir o mouse, mas com limites para que ela não se mova muito longe do avião, garantindo que o jogador tenha controle sobre a direção do avião e onde os tiros serão disparados, mas sem permitir que a mira se desloque para posições que não façam sentido em relação ao avião.
+        target.x = xTravado; target.y = yTravado; // Atualiza o alvo da câmera para seguir o mouse, usando os mesmos valores travados para garantir que a câmera siga o avião de forma suave e controlad, onde a câmera se ajusta à posição do mouse sem ficar rígida ou descontrolada.
     }
 
     let diferencaX = target.x - aviaoContainer.position.x; // T1: Calcula a diferença entre a posição alvo da câmera no eixo X e a posição atual do avião no eixo X, o que pode ser usado para determinar a direção e a intensidade do movimento do avião
@@ -320,7 +320,7 @@ function render() { // T1: Função de renderização que é chamada a cada fram
     camera.position.y += (aviaoContainer.position.y * 0.4 - camera.position.y) * 0.05; // Move a câmera suavemente para seguir o avião no eixo Y, usando o mesmo fator de 0.4 para manter a consistência do efeito de arrasto, permitindo que a câmera se ajuste à posição do avião sem ficar rígida, o que contribui para uma sensação de movimento mais fluida e natural.
 
     // Atualização do Terreno Procedural
-    terreno.position.z = cameraBox.position.z - 250;
+    terreno.position.z = cameraBox.position.z - 250; // Move o terreno para sempre ficar à frente da câmera, criando a ilusão de um mundo infinito que se estende à medida que a câmera avança, garantindo que o jogador tenha sempre um terreno para interagir e que as variações de altura e cor sejam visíveis durante a renderização.
 
     const pos = terreno.geometry.attributes.position; // Acessa os atributos de posição do terreno para modificar a altura dos vértices com base na função de Perlin Noise, criando um terreno que se ajusta dinamicamente à medida que a câmera avança, dando a impressão de um mundo infinito e variado.
     const col = terreno.geometry.attributes.color; // Acessa os atributos de cor do terreno para modificar as cores dos vértices com base na altura, criando um gradiente de cor que varia com a elevação do terreno, onde áreas mais altas podem parecer rochosas e áreas mais baixas podem parecer gramadas ou aquáticas, aumentando a riqueza visual do ambiente.
@@ -335,7 +335,7 @@ function render() { // T1: Função de renderização que é chamada a cada fram
         if (h > 60) { // Define a cor do vértice com base na altura, criando um gradiente de cor que varia com a elevação do terreno, onde áreas mais altas podem parecer rochosas e áreas mais baixas podem parecer gramadas ou aquáticas, aumentando a riqueza visual do ambiente.
             corTemp.copy(corRocha); // Se a altura for maior que 60, o vértice é considerado parte de uma rocha e recebe a cor de rocha.
         } else if (h > 45) {
-            corTemp.lerpColors(corGrama, corRocha, (h - 35) / 10);
+            corTemp.lerpColors(corGrama, corRocha, (h - 35) / 10); 
         } else if (h > 20) {
             corTemp.copy(corGrama);
         } else if (h > 10) {
@@ -354,9 +354,9 @@ function render() { // T1: Função de renderização que é chamada a cada fram
 
     listaArvores.forEach(a => { // Atualiza a posição das árvores para que se ajustem à altura do terreno, garantindo que as árvores estejam sempre posicionadas corretamente em relação à topografia do terreno, criando um ambiente mais coeso e realista à medida que a câmera avança.
         a.position.y = getAltura(a.position.x, a.position.z) - 50; // Ajusta a posição Y da árvore com base na altura do terreno para garantir que ela esteja "plantada" no solo, usando a função de Perlin Noise para obter a altura do terreno nas coordenadas X e Z da árvore, e subtraindo 50 para alinhar a base da árvore com o terreno.
-        if (a.position.z > cameraBox.position.z + 50) {
-            a.position.z = cameraBox.position.z - 600 - Math.random() * 200;
-            a.position.x = cameraBox.position.x + (Math.random() - 0.5) * 800;
+        if (a.position.z > cameraBox.position.z + 50) { // Se a árvore estiver muito próxima da câmera (atrás dela), reposiciona a árvore para um local mais distante à frente da câmera, criando a ilusão de um ambiente infinito onde as árvores continuam aparecendo à medida que a câmera avança, garantindo que o jogador tenha sempre um cenário visual interessante e variado para interagir.
+            a.position.z = cameraBox.position.z - 600 - Math.random() * 200; // Reposiciona a árvore para um local mais distante à frente da câmera, criando a ilusão de um ambiente infinito onde as árvores continuam aparecendo à medida que a câmera avança, garantindo que o jogador tenha sempre um cenário visual interessante e variado para interagir.
+            a.position.x = cameraBox.position.x + (Math.random() - 0.5) * 800; //
         }
     });
 
@@ -396,9 +396,9 @@ function render() { // T1: Função de renderização que é chamada a cada fram
       
       let alcanceVisaoZ = scene.fog.far * 0.4; // centraliza target na região média visível
       // coloca target um pouco para a direita para cobrir árvores laterais
-      luzTarget.position.set(cameraBox.position.x + 50, cameraBox.position.y - 30, cameraBox.position.z - alcanceVisaoZ);
+      luzTarget.position.set(cameraBox.position.x + 50, cameraBox.position.y - 30, cameraBox.position.z - alcanceVisaoZ); // Posiciona o alvo da luz direcional para que a luz ilumine a área à frente da câmera, garantindo que os objetos próximos à câmera sejam iluminados corretamente, e que as sombras sejam projetadas de forma realista com base na posição da câmera e na direção da luz, criando um ambiente visualmente rico e imersivo.
       
-      luzDirecional.position.set(luzTarget.position.x + 150, cameraBox.position.y + 180, luzTarget.position.z + 100);
+      luzDirecional.position.set(luzTarget.position.x + 150, cameraBox.position.y + 180, luzTarget.position.z + 100); // Posiciona a luz direcional em relação ao alvo para criar um ângulo de iluminação que simula a luz do sol, garantindo que os objetos sejam iluminados de forma consistente e que as sombras sejam projetadas corretamente, contribuindo para a atmosfera visual do jogo, especialmente com a neblina que pode limitar a visibilidade à distância.
     }
     
     camera.lookAt(cameraBox.position.x, cameraBox.position.y, cameraBox.position.z - 30); // T1: Faz a câmera olhar para um ponto à frente dela, ajustando a posição de destino para que a câmera olhe para um ponto 30 unidades à frente no eixo Z, mantendo a mesma posição no eixo X e Y

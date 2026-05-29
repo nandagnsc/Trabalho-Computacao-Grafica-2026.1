@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../build/jsm/loaders/GLTFLoader.js';
 
 // caminho do modelo low poly usado como inimigo
-const CAMINHO_MODELO_INIMIGO = '../assets/models/drone.glb';
+const CAMINHO_MODELO_INIMIGO = './drone.glb';
 // numero de inimigos ativos ao mesmo tempo
 const QUANTIDADE_INIMIGOS_ATIVOS = 2;
 // intervalo entre disparos do inimigo (ms) -> 1 tiros por segundo

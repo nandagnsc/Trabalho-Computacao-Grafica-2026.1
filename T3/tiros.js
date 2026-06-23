@@ -58,10 +58,11 @@ function criarElementoContador() {
 }
 
 export class SistemaTiros {
-  constructor(cena, camera) {
+  constructor(cena, camera, listener) {
     // guarda referencias da cena e da camera para mover e remover tiros
     this.cena = cena;
     this.camera = camera;
+    this.listener = listener;
 
     // listas de tiros ativos do jogador e dos inimigos
     this.tirosJogador = [];
@@ -83,7 +84,72 @@ export class SistemaTiros {
     // velocidades dinamicas (podem ser atualizadas via setSpeedProfile)
     this.velocidadeTiroJogador = 230;
     this.velocidadeTiroInimigo = 150;
+
+
+    //SONS:
+    this.somTiroJogador = new THREE.Audio(this.listener); //cria o objeto de áudio para o tiro do jogador
+    this.somTiroInimigo = new THREE.Audio(this.listener); //cria o objeto de áudio para o tiro do inimigo
+   
+    this.somAviaoAtingido = new THREE.Audio(this.listener); //cria o objeto de áudio para o avião atingido
+    this.somInimigoAtingido = new THREE.Audio(this.listener); //cria o objeto de áudio para o inimigo atingido
+
+
+    const loader = new THREE.AudioLoader();
+    loader.load('./TIROBASICO.wav', (buffer) => {
+      this.somTiroJogador.setBuffer(buffer);
+      this.somTiroJogador.setVolume(0.2); // Ajusta o volume do som do tiro do jogador
+    });
+
+    loader.load('./tirofino.wav', (buffer) => {
+      this.somTiroInimigo.setBuffer(buffer);
+      this.somTiroInimigo.setVolume(0.08); // Ajusta o volume do som do tiro do inimigo
+    });
+
+    loader.load('./aviao-atingido.wav', (buffer) => {
+      this.somAviaoAtingido.setBuffer(buffer);
+      this.somAviaoAtingido.setVolume(0.15); // Ajusta o volume do som do avião atingido
+    });
+
+    loader.load('./inimigo-atingido.wav', (buffer) => {
+      this.somInimigoAtingido.setBuffer(buffer);
+      this.somInimigoAtingido.setVolume(0.4); // Ajusta o volume do som do inimigo atingido
+    });
+
+
+
   }
+
+
+  //SONS:
+  tocarSomTiroJogador() {
+    if (this.somTiroJogador.isPlaying) {
+      this.somTiroJogador.stop(); // Para o som atual se estiver tocando
+    }
+    this.somTiroJogador.play(); // Toca o som do tiro do jogador
+  }
+
+  tocarSomTiroInimigo() {
+    if (this.somTiroInimigo.isPlaying) {
+      this.somTiroInimigo.stop(); // Para o som atual se estiver tocando
+    }
+    this.somTiroInimigo.play(); // Toca o som do tiro do inimigo
+  }
+
+
+  tocarSomAviaoAtingido() {
+    if (this.somAviaoAtingido.isPlaying) {
+      this.somAviaoAtingido.stop(); // Para o som atual se estiver tocando
+    }
+    this.somAviaoAtingido.play(); // Toca o som do avião atingido
+  }
+
+  tocarSomInimigoAtingido() {
+    if (this.somInimigoAtingido.isPlaying) {
+      this.somInimigoAtingido.stop(); // Para o som atual se estiver tocando
+    }
+    this.somInimigoAtingido.play(); // Toca o som do inimigo atingido
+  }
+
 
   definirDisparoContinuoAtivo(ativo) {
     // liga ou desliga o disparo continuo do jogador
@@ -110,6 +176,10 @@ export class SistemaTiros {
 
     // adiciona o tiro na cena e na lista de ativos
     this.cena.add(meshTiro);
+
+    // toca o som do tiro inimigo
+    this.tocarSomTiroInimigo();
+
 
     this.tirosInimigos.push({
       objeto: meshTiro,
@@ -146,6 +216,10 @@ export class SistemaTiros {
 
     // adiciona o tiro na cena para ele aparecer no render
     this.cena.add(tiro);
+
+    
+    this.tocarSomTiroJogador();// toca o som do tiro do jogador
+
 
     // registra o tiro no array de tiros ativos do jogador para atualizar depois
     this.tirosJogador.push({
@@ -205,6 +279,7 @@ export class SistemaTiros {
           aoAtingirInimigo(inimigo.id); // notifica sistema de inimigos
           this.cena.remove(tiro.objeto); // remove visualmente
           this.tirosJogador.splice(i, 1); // remove do array
+          this.tocarSomInimigoAtingido(); // toca o som do inimigo atingido
           removeuTiro = true;
           break;
         }
@@ -238,6 +313,7 @@ export class SistemaTiros {
         this._atualizarHUD();
         this.cena.remove(tiro.objeto);
         this.tirosInimigos.splice(i, 1);
+        this.tocarSomAviaoAtingido(); // toca o som do avião atingido
         continue;
       }
 

@@ -1,16 +1,3 @@
-/*
-Presentation notes (Student B - Iluminação / movimentação do avião / câmera)
-
-Talking points and code anchors:
-- Scene and cameraBox: explain why camera is parented to a group (cameraBox) and how moving the group simulates world movement.
-- Plano invisível + raycaster + mira: how raycasting maps mouse -> 3D point and controls the aiming target.
-- Aviao container movement: target smoothing, anguloDesejado, velocidadeInclinacao - explain smoothing math and limits.
-- Câmera follow: small lag factors to create a smooth 'drag' effect.
-- Luz direcional + shadows + fog: explain shadow camera bounds, why adapt to fog.far, and role of ambient light.
-- Render loop: order of updates (terrain, trees, hitbox, enemies, tiros) and why delta time is used.
-
-When presenting, open each code section in this file and narrate the short sequence: input (mouse) -> target -> airplane transform -> camera transform -> render.
-*/
 import * as THREE from 'three';
 import Stats from '../build/jsm/libs/stats.module.js';
 import { initRenderer, SecondaryBox, initDefaultBasicLight, onWindowResize, InfoBox } from "../libs/util/util.js";
@@ -133,8 +120,25 @@ aviao.traverse((child) => { // Ativa sombras para o avião (inclui todos os mesh
 });
 
 
+// SONS:
+const listener = new THREE.AudioListener(); //cria o listener
+camera.add(listener); // Adiciona o listener de áudio à câmera para que os sons sejam percebidos corretamente em relação à posição da câmera.
+
+const musicaFundo = new THREE.Audio(listener); // Cria o objeto de áudio para a música de fundo, que será reproduzida continuamente durante o jogo
+const loader = new THREE.AudioLoader(); // Cria o carregador de áudio para carregar arquivos de som, permitindo que a música de fundo e outros efeitos sonoros sejam carregados e reproduzidos corretamente no jogo.
+loader.load('./musicaFundo.mp4', (buffer) => { // Carrega o arquivo de música de fundo e define o buffer de áudio para o objeto de áudio, permitindo que a música seja reproduzida corretamente durante o jogo.
+    musicaFundo.setBuffer(buffer);
+    musicaFundo.setLoop(true); // Define a música de fundo para ser reproduzida em loop, garantindo que ela continue tocando continuamente durante o jogo
+    musicaFundo.setVolume(0.2); // Define o volume da música de fundo para um nível confortável, garantindo que ela não seja muito alta ou muito baixa em relação aos outros sons do jogo
+    musicaFundo.play(); // Inicia a reprodução da música de fundo.
+});
+
+
+
+
+
 const sistemaInimigos = new SistemaInimigos(scene, cameraBox); // Cria o sistema responsável por spawn, movimento e disparo dos inimigos.
-const sistemaTiros = new SistemaTiros(scene, camera); // Cria o sistema que controla tiros do jogador e tiros dos inimigos.
+const sistemaTiros = new SistemaTiros(scene, camera, listener); // Cria o sistema que controla tiros do jogador e tiros dos inimigos.
 
 sistemaInimigos.inicializar().catch(erro => console.error('Erro nos inimigos:', erro)); // Carrega modelo dos inimigos e prepara a lista inicial; se falhar, mostra no console.
 
@@ -245,6 +249,8 @@ window.addEventListener('mousemove', (event) => {
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; // T1: Normaliza a posição do mouse no eixo Y para o intervalo [-1, 1]
 });
 
+
+
 function pausarSimulacao() {
     simulaPausada = true; // Ativa o estado de pausa para interromper atualizações 
     sistemaTiros.definirDisparoContinuoAtivo(false); // Desliga o disparo contínuo para não continuar atirando durante a pausa.
@@ -261,6 +267,10 @@ function retomarSimulacao() {
 window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') pausarSimulacao(); //ESC pausa o game
     if (['1', '2', '3'].includes(event.key)) aplicarModoVelocidade(Number(event.key)); // troca modo de velocidade por tecla
+    if(event.key.toLowerCase() === 's'){
+        if(musicaFundo.isPlaying) musicaFundo.pause();
+        else musicaFundo.play();
+    }
 });
 
 renderer.domElement.addEventListener('click', () => retomarSimulacao());
@@ -282,6 +292,8 @@ const infoBox = new SecondaryBox(""); // T1: Cria uma caixa de informações par
 const controls = new InfoBox();
 controls.add("Controle com o mouse"); // T1: Adiciona uma linha de texto à caixa de informações
 controls.add("Pressione ESC para pausar, clique para voltar."); // dica da pausa via ESC e clique, so informa o usuario
+controls.add("Teclas 1, 2 e 3 para mudar a velocidade do jogo."); // dica de troca de velocidade via teclas 1, 2 e 3
+controls.add("Tecla S para pausar/retomar a música de fundo."); // dica de pausa/retomada da música via tecla S
 controls.show();
 
 const gui = new GUI();

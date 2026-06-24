@@ -6,6 +6,7 @@ import { criarAviao } from './aviao.js';
 import { SistemaInimigos } from './inimigos.js';
 import { SistemaTiros } from './tiros.js';
 import GUI from '../libs/util/dat.gui.module.js';
+import { Water } from '../build/jsm/objects/Water.js';
 
 const scene = new THREE.Scene(); // T1: Cria a cena principal
 const clock = new THREE.Clock(); // T1: Cria um relógio para controlar o tempo entre os frames
@@ -104,7 +105,6 @@ for(let i = 0; i < 150; i++) {
         listaArvores.push(arvore);
     }
 }
-// Substitua o bloco antigo por este:
 const aviaoContainer = criarAviao(); // Já recebe o contêiner com o GLB dentro
 aviaoContainer.position.set(0, 0, -25); 
 cameraBox.add(aviaoContainer);
@@ -309,6 +309,36 @@ const corAgua = new THREE.Color(0x0077BE);
 const corTemp = new THREE.Color(); // cor auxiliar para calcular as cores do terreno sem criar objetos extras, usada para interpolar entre as cores base (rocha, grama, água) com base na altura do terreno, permitindo que cada vértice do terreno tenha uma cor que corresponda à sua elevação, criando um efeito visual mais rico e realista.
 
 
+
+//AGUA:
+function criarAgua() {
+    // Aumente um pouco a escala para cobrir tudo
+    const waterGeometry = new THREE.PlaneGeometry(3000, 3000); 
+
+    const water = new Water(waterGeometry, {
+        textureWidth: 512,
+        textureHeight: 512,
+        waterNormals: new THREE.TextureLoader().load('../assets/textures/NormalMapping/waternormals.jpg', (texture) => {
+            texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        }),
+        sunDirection: new THREE.Vector3(1, 1, 1).normalize(), // IMPORTANTE: Defina uma direção de sol
+        sunColor: 0xffffff,
+        waterColor: 0x0077BE,
+        distortionScale: 3.7,
+        fog: scene.fog !== undefined
+    });
+
+    water.rotation.x = -Math.PI / 2;
+    water.position.y = -35; // Ajuste este valor: Se o seu terreno tem h=10 como nível do mar, tente -40 ou -45
+    scene.add(water);
+
+    return water;
+}
+
+const agua = criarAgua(); // Cria a água e adiciona à cena, permitindo que o jogador veja o efeito visual da água refletindo o ambiente e interagindo com o terreno, melhorando a imersão e a estética do jogo.
+
+
+
 function render() { // T1: Função de renderização que é chamada a cada frame para atualizar a cena
     stats.update();
     if (simulaPausada) { // Se a simulação estiver pausada, apenas renderiza a cena sem atualizar a lógica do jogo, permitindo que o jogador veja o estado atual do jogo enquanto está pausado, mas sem que nada se mova ou mude até que ele retome a simulação
@@ -353,6 +383,8 @@ function render() { // T1: Função de renderização que é chamada a cada fram
     const pos = terreno.geometry.attributes.position; // Acessa os atributos de posição do terreno para modificar a altura dos vértices com base na função de Perlin Noise, criando um terreno que se ajusta dinamicamente à medida que a câmera avança, dando a impressão de um mundo infinito e variado.
     const col = terreno.geometry.attributes.color; // Acessa os atributos de cor do terreno para modificar as cores dos vértices com base na altura, criando um gradiente de cor que varia com a elevação do terreno, onde áreas mais altas podem parecer rochosas e áreas mais baixas podem parecer gramadas ou aquáticas, aumentando a riqueza visual do ambiente.
 
+    
+
     for (let i = 0; i < pos.count; i++) { // Itera sobre cada vértice do terreno para atualizar sua altura e cor com base na função de Perlin Noise, criando um terreno que se ajusta dinamicamente à medida que a câmera avança, dando a impressão de um mundo infinito e variado.
         let xGlobal = pos.getX(i) + terreno.position.x;
         let zGlobal = pos.getZ(i) + terreno.position.z;
@@ -369,11 +401,13 @@ function render() { // T1: Função de renderização que é chamada a cada fram
         } else if (h > 10) {
             corTemp.lerpColors(corAgua, corGrama, (h - 10) / 10);
         } else {
-            corTemp.copy(corAgua); 
+            corTemp.copy(corAgua); // Se a altura for menor ou igual a 10, o vértice é considerado parte da água e recebe a cor de água.
         }
 
         col.setXYZ(i, corTemp.r, corTemp.g, corTemp.b); // Define a cor do vértice com base na altura, criando um gradiente de cor que varia com a elevação do terreno, onde áreas mais altas podem parecer rochosas e áreas mais baixas podem parecer gramadas ou aquáticas, aumentando a riqueza visual do ambiente.
     }
+    // Dentro do render(), após mover o terreno:
+    agua.position.z = cameraBox.position.z - 250;
 
     pos.needsUpdate = true; // Informa ao Three.js que os atributos de posição foram modificados e precisam ser atualizados no buffer da GPU para refletir as mudanças na geometria do terreno, garantindo que as alterações de altura sejam visíveis na renderização.
     col.needsUpdate = true; // Informa ao Three.js que os atributos de cor foram modificados e precisam ser atualizados no buffer da GPU para refletir as mudanças nas cores dos vértices do terreno, garantindo que as alterações de cor sejam visíveis na renderização.
@@ -430,6 +464,14 @@ function render() { // T1: Função de renderização que é chamada a cada fram
       
       luzDirecional.position.set(luzTarget.position.x + 150, cameraBox.position.y + 180, luzTarget.position.z + 100); // Posiciona a luz direcional em relação ao alvo para criar um ângulo de iluminação que simula a luz do sol, garantindo que os objetos sejam iluminados de forma consistente e que as sombras sejam projetadas corretamente, contribuindo para a atmosfera visual do jogo, especialmente com a neblina que pode limitar a visibilidade à distância.
     }
+
+
+
+    //AGUA:
+    agua.material.uniforms['time'].value += 1/60; // Atualiza o tempo do shader da água para criar o efeito de movimento das ondas, garantindo que a água tenha uma aparência dinâmica e realista à medida que o jogo avança, contribuindo para a imersão visual do ambiente.
+    
+
+
     
     // camera.lookAt(cameraBox.position.x, cameraBox.position.y, cameraBox.position.z - 30); // T1: Faz a câmera olhar para um ponto à frente dela, ajustando a posição de destino para que a câmera olhe para um ponto 30 unidades à frente no eixo Z, mantendo a mesma posição no eixo X e Y
     renderer.render(scene, camera); // T1: Renderiza a cena usando a câmera, atualizando o que é exibido na tela com base nas mudanças feitas na cena e na posição da câmera

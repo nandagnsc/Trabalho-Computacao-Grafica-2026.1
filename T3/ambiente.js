@@ -1,15 +1,3 @@
-/*
-Presentation notes (Student A - Ambiente procedural)
-
-This header explains which parts of this file to present and short talking points
-- Perlin noise (below): explain permutation table, fade, grad, lerp and how noise() works
-- getAltura(): combining noise at multiple frequencies (octaves) to create realistic terrain
-- geoTerreno + vertex colors: explain why we use many segments and per-vertex color
-- listaArvores loop: how trees are placed, aligned to terrain height and recycled
-
-When presenting, point to the specific functions below (Perlin, getAltura, criaCenario*) and
-explain how they separate data (positions arrays) from visual construction (tree geometries).
-*/
 import * as THREE from  'three';
 import { OrbitControls } from '../build/jsm/controls/OrbitControls.js';
 import {initRenderer, 

@@ -247,6 +247,10 @@ window.addEventListener('mousemove', (event) => {
     renderer.domElement.style.cursor = 'none';
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1; // T1: Normaliza a posição do mouse no eixo X para o intervalo [-1, 1]
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; // T1: Normaliza a posição do mouse no eixo Y para o intervalo [-1, 1]
+    
+    // Limita o mouse a 85% do tamanho da tela
+    mouse.x = THREE.MathUtils.clamp(mouse.x, -0.80, 0.80);
+    mouse.y = THREE.MathUtils.clamp(mouse.y, -0.80, 0.80);
 });
 
 
@@ -324,10 +328,10 @@ function render() { // T1: Função de renderização que é chamada a cada fram
 
     if (intersecoes.length > 0) { // Se houver interseção com o plano invisível, atualiza a posição da mira e o alvo da câmera para seguir o mouse, permitindo que o jogador controle a direção do avião e onde os tiros serão disparados. A posição do mouse é convertida para as coordenadas locais do plano invisível para garantir que a mira e o alvo da câmera se movam corretamente em relação à posição do avião.
         let pontoLocal = cameraBox.worldToLocal(intersecoes[0].point.clone()); // Converte a posição global do ponto de interseção para as coordenadas locais do cameraBox, o que é necessário para atualizar a posição da mira e o alvo da câmera de forma correta em relação ao avião, garantindo que eles se movam de acordo com a posição do mouse dentro do espaço do jogo.
-        let xTravado = THREE.MathUtils.clamp(pontoLocal.x, -22, 22);
-        let yTravado = THREE.MathUtils.clamp(pontoLocal.y, -10, 10);
-        mira.position.x = xTravado; mira.position.y = yTravado; // Atualiza a posição da mira para seguir o mouse, mas com limites para que ela não se mova muito longe do avião, garantindo que o jogador tenha controle sobre a direção do avião e onde os tiros serão disparados, mas sem permitir que a mira se desloque para posições que não façam sentido em relação ao avião.
-        target.x = xTravado; target.y = yTravado; // Atualiza o alvo da câmera para seguir o mouse, usando os mesmos valores travados para garantir que a câmera siga o avião de forma suave e controlad, onde a câmera se ajusta à posição do mouse sem ficar rígida ou descontrolada.
+        mira.position.x = pontoLocal.x; 
+        mira.position.y = pontoLocal.y; // Atualiza a posição da mira para seguir o mouse sem limites extras, já que o mouse já está restringido a 85% da tela
+        target.x = pontoLocal.x; 
+        target.y = pontoLocal.y; // Atualiza o alvo da câmera para seguir o mouse, garantindo que a câmera siga o avião de forma suave e controlada
     }
 
     let diferencaX = target.x - aviaoContainer.position.x; // T1: Calcula a diferença entre a posição alvo da câmera no eixo X e a posição atual do avião no eixo X, o que pode ser usado para determinar a direção e a intensidade do movimento do avião
@@ -341,8 +345,8 @@ function render() { // T1: Função de renderização que é chamada a cada fram
     aviaoContainer.rotation.z += (anguloDesejado - aviaoContainer.rotation.z) * velocidadeInclinacao; // T1: Atualiza a rotação do avião no eixo Z para criar um efeito de inclinação com base na posição do mouse, multiplicando pela velocidade de inclinação para controlar a intensidade do efeito
     aviaoContainer.rotation.x += (anguloDesejadoX - aviaoContainer.rotation.x) * velocidadeInclinacaoX; // T2: Atualiza a rotação do avião no eixo X para criar um efeito de inclinação com base na posição do mouse, multiplicando pela velocidade de inclinação para controlar a intensidade do efeito
 
-    camera.position.x += (aviaoContainer.position.x * 0.4 - camera.position.x) * 0.05; // Move a câmera suavemente para seguir o avião no eixo X, usando um fator de 0.4 para que a câmera siga o avião parcialmente, criando um efeito de "arrasto" onde a câmera não fica exatamente na posição do avião, mas se move em direção a ela de forma suave.
-    camera.position.y += (aviaoContainer.position.y * 0.4 - camera.position.y) * 0.05; // Move a câmera suavemente para seguir o avião no eixo Y, usando o mesmo fator de 0.4 para manter a consistência do efeito de arrasto, permitindo que a câmera se ajuste à posição do avião sem ficar rígida, o que contribui para uma sensação de movimento mais fluida e natural.
+    cameraBox.position.x += (aviaoContainer.position.x * 2 - cameraBox.position.x) * 0.2; // Move a câmera suavemente para seguir o avião no eixo X, usando um fator de 0.4 para que a câmera siga o avião parcialmente, criando um efeito de "arrasto" onde a câmera não fica exatamente na posição do avião, mas se move em direção a ela de forma suave.
+    cameraBox.position.y += (aviaoContainer.position.y * 0.7 - cameraBox.position.y) * 0.2; // Move a câmera suavemente para seguir o avião no eixo Y, usando o mesmo fator de 0.4 para manter a consistência do efeito de arrasto, permitindo que a câmera se ajuste à posição do avião sem ficar rígida, o que contribui para uma sensação de movimento mais fluida e natural.
 
     // Atualização do Terreno Procedural
     terreno.position.z = cameraBox.position.z - 250; // Move o terreno para sempre ficar à frente da câmera, criando a ilusão de um mundo infinito que se estende à medida que a câmera avança, garantindo que o jogador tenha sempre um terreno para interagir e que as variações de altura e cor sejam visíveis durante a renderização.
@@ -415,8 +419,10 @@ function render() { // T1: Função de renderização que é chamada a cada fram
 
     if (scene.fog && luzDirecional.castShadow) {// volume de visualização adaptativo ao fog    
       // Multiplicando por 1.2 e 0.6 para cobrir o horizonte antes dele surgir na neblina
-      luzDirecional.shadow.camera.top = scene.fog.far * 1.2; //
-      luzDirecional.shadow.camera.bottom = -scene.fog.far * 0.6;
+      luzDirecional.shadow.camera.far = scene.fog.far * 1.2; //
+      luzDirecional.shadow.camera.near = -scene.fog.far * 0.6;
+      luzDirecional.shadow.camera.left = -scene.fog.far * 0.6;
+      luzDirecional.shadow.camera.right = scene.fog.far * 0.6;
       luzDirecional.shadow.camera.updateProjectionMatrix();
       
       let alcanceVisaoZ = scene.fog.far * 0.4; // centraliza target na região média visível
@@ -426,7 +432,7 @@ function render() { // T1: Função de renderização que é chamada a cada fram
       luzDirecional.position.set(luzTarget.position.x + 150, cameraBox.position.y + 180, luzTarget.position.z + 100); // Posiciona a luz direcional em relação ao alvo para criar um ângulo de iluminação que simula a luz do sol, garantindo que os objetos sejam iluminados de forma consistente e que as sombras sejam projetadas corretamente, contribuindo para a atmosfera visual do jogo, especialmente com a neblina que pode limitar a visibilidade à distância.
     }
     
-    camera.lookAt(cameraBox.position.x, cameraBox.position.y, cameraBox.position.z - 30); // T1: Faz a câmera olhar para um ponto à frente dela, ajustando a posição de destino para que a câmera olhe para um ponto 30 unidades à frente no eixo Z, mantendo a mesma posição no eixo X e Y
+    // camera.lookAt(cameraBox.position.x, cameraBox.position.y, cameraBox.position.z - 30); // T1: Faz a câmera olhar para um ponto à frente dela, ajustando a posição de destino para que a câmera olhe para um ponto 30 unidades à frente no eixo Z, mantendo a mesma posição no eixo X e Y
     renderer.render(scene, camera); // T1: Renderiza a cena usando a câmera, atualizando o que é exibido na tela com base nas mudanças feitas na cena e na posição da câmera
     requestAnimationFrame(render); // T1: Solicita que a função de renderização seja chamada novamente no próximo frame, criando um loop de animação contínuo
     

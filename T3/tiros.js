@@ -22,7 +22,7 @@ const DISTANCIA_MAXIMA_TIRO = 250;
 const GEOMETRIA_TIRO_JOGADOR = new THREE.PlaneGeometry(4.2, 0.5);
 // material solido para o tiro do jogador
 const MATERIAL_TIRO_JOGADOR = new THREE.MeshBasicMaterial({
-  color: 0xffe066,
+  color: 'purple',
   side: THREE.DoubleSide,
   depthWrite: false,
 });

@@ -401,13 +401,9 @@ function render() { // T1: Função de renderização que é chamada a cada fram
             corTemp.copy(corRocha); // Se a altura for maior que 60, o vértice é considerado parte de uma rocha e recebe a cor de rocha.
         } else if (h > 45) {
             corTemp.lerpColors(corGrama, corRocha, (h - 35) / 10); 
-        } else if (h > 20) {
-            corTemp.copy(corGrama);
-        } else if (h > 10) {
-            corTemp.lerpColors(corAgua, corGrama, (h - 10) / 10);
         } else {
-            corTemp.copy(corAgua); // Se a altura for menor ou igual a 10, o vértice é considerado parte da água e recebe a cor de água.
-        }
+            corTemp.copy(corGrama);
+        } 
 
         col.setXYZ(i, corTemp.r, corTemp.g, corTemp.b); // Define a cor do vértice com base na altura, criando um gradiente de cor que varia com a elevação do terreno, onde áreas mais altas podem parecer rochosas e áreas mais baixas podem parecer gramadas ou aquáticas, aumentando a riqueza visual do ambiente.
     }

@@ -267,12 +267,17 @@ function retomarSimulacao() {
     mira.visible = true; // exibe novamente a mira para retomar o combate.
 }
 
+let isInvencivel = false; // Variável para controlar o estado de invencibilidade do jogador, que pode ser ativada ou desativada durante o jogo, permitindo que o jogador se torne temporariamente imune a danos e colisões, o que pode ser útil para testes, depuração ou modos de jogo especiais.
+
 window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') pausarSimulacao(); //ESC pausa o game
     if (['1', '2', '3'].includes(event.key)) aplicarModoVelocidade(Number(event.key)); // troca modo de velocidade por tecla
     if(event.key.toLowerCase() === 's'){
         if(musicaFundo.isPlaying) musicaFundo.pause();
         else musicaFundo.play();
+    }
+    if(event.key.toLowerCase() === 'g'){
+        isInvencivel = !isInvencivel;
     }
 });
 
@@ -448,6 +453,7 @@ function render() { // T1: Função de renderização que é chamada a cada fram
         boxJogador: caixaJogador, // Hitbox do jogador para detectar quando um tiro inimigo acerta.
         inimigosColisiveis: sistemaInimigos.obterInimigosColisiveis(), // Lista de hitboxes dos inimigos para teste de impacto dos tiros do jogador.
         aoAtingirInimigo: (idInimigo) => sistemaInimigos.marcarComoAtingido(idInimigo), // Quando um tiro acerta, avisa o sistema de inimigos para iniciar a animação de destruição.
+        isinvencivel: isInvencivel, // Passa o estado de invencibilidade para o sistema de tiros, que pode ignorar colisões com o jogador se estiver ativo.
     });
 
     if (scene.fog && luzDirecional.castShadow) {// volume de visualização adaptativo ao fog    

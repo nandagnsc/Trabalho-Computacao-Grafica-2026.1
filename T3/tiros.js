@@ -247,6 +247,7 @@ export class SistemaTiros {
     boxJogador,
     inimigosColisiveis,
     aoAtingirInimigo,
+    isinvencivel
   }) {
     // cria tiros enquanto o botao esquerdo estiver pressionado
     if (this.estaDisparoContinuoAtivo && tempoAtualMs - this.ultimoTiroJogadorMs >= CADENCIA_TIRO_JOGADOR_MS) {
@@ -256,7 +257,7 @@ export class SistemaTiros {
 
     // move e testa colisao dos tiros do jogador e dos inimigos
     this._atualizarTirosJogador(deltaSegundos, inimigosColisiveis, aoAtingirInimigo);
-    this._atualizarTirosInimigos(deltaSegundos, boxJogador);
+    this._atualizarTirosInimigos(deltaSegundos, boxJogador, isinvencivel);
   }
 
   _atualizarTirosJogador(deltaSegundos, inimigosColisiveis, aoAtingirInimigo) {
@@ -295,7 +296,7 @@ export class SistemaTiros {
     }
   }
 
-  _atualizarTirosInimigos(deltaSegundos, boxJogador) {
+  _atualizarTirosInimigos(deltaSegundos, boxJogador, isinvencivel) {
     // percorre de tras para frente para remover tiros com seguranca
     for (let i = this.tirosInimigos.length - 1; i >= 0; i--) {
       const tiro = this.tirosInimigos[i];
@@ -307,13 +308,18 @@ export class SistemaTiros {
 
       // bounding box para detectar acerto no jogador
       this._auxBoxTiro.setFromObject(tiro.objeto);
-      if (this._auxBoxTiro.intersectsBox(boxJogador)) {
+      if (this._auxBoxTiro.intersectsBox(boxJogador) && !isinvencivel) {
         // incrementa o contador visivel e remove o tiro
         this.contadorTirosSofridos += 1;
         this._atualizarHUD();
         this.cena.remove(tiro.objeto);
         this.tirosInimigos.splice(i, 1);
         this.tocarSomAviaoAtingido(); // toca o som do avião atingido
+        continue;
+      } else if (this._auxBoxTiro.intersectsBox(boxJogador) && isinvencivel) {
+        // apenas remove o tiro sem incrementar o contador
+        this.cena.remove(tiro.objeto);
+        this.tirosInimigos.splice(i, 1);
         continue;
       }
 

@@ -104,20 +104,19 @@ for(let i = 0; i < 150; i++) {
         listaArvores.push(arvore);
     }
 }
-
-const aviao = criarAviao();
-const aviaoContainer = new THREE.Object3D(); // T1: Cria um objeto vazio (aviaoContainer) para conter o avião, permitindo que o avião seja controlado como um grupo, facilitando a aplicação de transformações como movimento e rotação ao avião como um todo, sem afetar diretamente a posição ou rotação individual do modelo do avião.
-aviaoContainer.add(aviao); // T1: Adiciona o avião a um objeto vazio (aviaoContainer) para facilitar o controle do movimento do avião
-aviaoContainer.position.set(0, 0, -25); // T1: Define a posição inicial do avião dentro da cena, um pouco à frente da câmera para que ele seja visível desde o início do jogo
-aviao.rotateY(Math.PI / 2); // T1: Gira o avião para que ele ltado para a direção correta (para frente)
+// Substitua o bloco antigo por este:
+const aviaoContainer = criarAviao(); // Já recebe o contêiner com o GLB dentro
+aviaoContainer.position.set(0, 0, -25); 
+cameraBox.add(aviaoContainer);
+// aviao.rotateY(Math.PI / 2); // T1: Gira o avião para que ele ltado para a direção correta (para frente)
 cameraBox.add(aviaoContainer); // T1: Adiciona o avião à cena
 
-aviao.traverse((child) => { // Ativa sombras para o avião (inclui todos os meshes filhos)
-  if (child.isMesh) {
-    child.castShadow = true;
-    child.receiveShadow = true;
-  }
-});
+// aviao.traverse((child) => { // Ativa sombras para o avião (inclui todos os meshes filhos)
+//   if (child.isMesh) {
+//     child.castShadow = true;
+//     child.receiveShadow = true;
+//   }
+// });
 
 
 // SONS:

@@ -94,7 +94,7 @@ function getAltura(x, z) {
 // 1. NOVO SISTEMA DE TERRENO EM ESTEIRA (CHUNKS)
 // ==========================================================
 
-const largura = 2000, profundidade = 1000, divisoes = 150; 
+const largura = 1000, profundidade = 1000, divisoes = 150; 
 const matTerreno = new THREE.MeshStandardMaterial({ 
     vertexColors: true,
     wireframe: false, 
@@ -144,7 +144,7 @@ for (let i = 0; i < 3; i++) {
     geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 3), 3));
     
     const plano = new THREE.Mesh(geo, matTerreno);
-    plano.position.set(0, -50, -i * profundidade); // -0, -1000, -2000
+    plano.position.set(0, -80, -i * profundidade); // -0, -1000, -2000
     plano.receiveShadow = true;
     
     atualizarGeometriaPlano(plano);
@@ -168,7 +168,7 @@ for(let i = 0; i < 150; i++) {
         });
         arvore.position.x = (Math.random() - 0.5) * 800;
         arvore.position.z = -Math.random() * 800;
-        arvore.position.y = getAltura(arvore.position.x, arvore.position.z) - 50;
+        arvore.position.y = getAltura(arvore.position.x, arvore.position.z) - 80;
         listaArvores.push(arvore);
     }
 }
@@ -204,8 +204,8 @@ const centroHitboxJogador = new THREE.Vector3();
 const luzDirecional = new THREE.DirectionalLight(new THREE.Color("white"), 3.5); 
 luzDirecional.castShadow = true;
 
-luzDirecional.shadow.mapSize.width = 2048; 
-luzDirecional.shadow.mapSize.height = 2048; 
+luzDirecional.shadow.mapSize.width = 512; 
+luzDirecional.shadow.mapSize.height = 512; 
 
 luzDirecional.shadow.camera.near = 0.1; 
 luzDirecional.shadow.camera.far = 600; 
@@ -231,8 +231,6 @@ scene.add(luzAmbiente);
 //let simulaPausada = false;
 
 const target = new THREE.Vector3(0, 0, 0); 
-
-
 
 const anguloMaxRotacao = 0.5; 
 const limiarParadaRotacao = 1; 
@@ -355,7 +353,7 @@ controls.add("Tecla S para pausar/retomar a música de fundo.");
 controls.show();
 
 const gui = new GUI();
-gui.add(scene.fog, 'far', 100, 750).name("Neblina (Fog)");
+gui.add(scene.fog, 'far', 300, 750).name("Neblina (Fog)");
 
 //AGUA:
 function criarAgua() {
@@ -374,7 +372,7 @@ function criarAgua() {
     });
 
     water.rotation.x = -Math.PI / 2;
-    water.position.y = -35; 
+    water.position.y = -65; 
     scene.add(water);
 
     return water;
@@ -441,7 +439,7 @@ function render() {
     agua.position.z = cameraBox.position.z - 250;
 
     listaArvores.forEach(a => { 
-        a.position.y = getAltura(a.position.x, a.position.z) - 50.5; 
+        a.position.y = getAltura(a.position.x, a.position.z) - 80.5; 
         if (a.position.z > cameraBox.position.z + 50) { 
             a.position.z = cameraBox.position.z - 600 - Math.random() * 200; 
             a.position.x = cameraBox.position.x + (Math.random() - 0.5) * 800; 
@@ -475,7 +473,7 @@ function render() {
     });
 
     if (scene.fog && luzDirecional.castShadow) {    
-      luzDirecional.shadow.camera.far = scene.fog.far * 1.2; 
+      luzDirecional.shadow.camera.far = scene.fog.far * 1.5; 
       luzDirecional.shadow.camera.near = -scene.fog.far * 0.6;
       luzDirecional.shadow.camera.left = -scene.fog.far * 0.6;
       luzDirecional.shadow.camera.right = scene.fog.far * 0.6;

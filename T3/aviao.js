@@ -9,14 +9,14 @@ export function criarAviao() {
     // Instancia o carregador de GLTF/GLB
     const loader = new GLTFLoader();
 
-    // Carrega o seu F-15C (.glb)
+    // Carrega o F-15C (.glb)
     loader.load(
-        './aviao.glb', // ATENÇÃO: Ajuste o caminho correto para onde você salvou o seu arquivo .glb
+        './aviao.glb',
         (gltf) => {
             const aviao = gltf.scene;
 
             // 1. AJUSTE DE ESCALA: 
-            aviao.scale.set(1.2, 1.2, 1.2);
+            aviao.scale.set(0.7, 0.7, 0.7);
 
             // 2. AJUSTE DE ROTAÇÃO:
             aviao.rotateY(Math.PI);

@@ -88,8 +88,8 @@ export class TelaCarregamento {
         div.style.fontFamily = 'Verdana, sans-serif';
 
         div.innerHTML = `
-            <h1 style="font-size: 50px; color: #ff99cc; text-shadow: 0 0 20px #ff99cc; margin-bottom: 20px; text-transform: uppercase;">Rail Shooter</h1>
-            <h2 style="font-size: 20px; font-weight: normal; margin-bottom: 30px;">Carregando modelos, sons e texturas...</h2>
+            <h1 style="font-size: 50px; color: #ff99cc; text-shadow: 0 0 20px #ff99cc; margin-bottom: 20px; text-transform: uppercase;">Shooter Girls</h1>
+            <h2 style="font-size: 20px; font-weight: normal; margin-bottom: 30px;">Quase pronto para o jogo...</h2>
             
             <div style="width: 50vw; max-width: 500px; height: 30px; background: rgba(255,255,255,0.2); border-radius: 15px; border: 2px solid #fff; position: relative; overflow: hidden;">
                 <div id="barra-progresso" style="width: 0%; height: 100%; background: #ff99cc; transition: width 0.2s ease;"></div>
@@ -147,3 +147,151 @@ export class TelaCarregamento {
         };
     }
 }
+    // ==========================================
+// 3. SISTEMA DE HEALTH PACKS (Energia e Atrator)
+// ==========================================
+export class SistemaHealthPacks {
+    constructor(scene, cameraBox) {
+        this.scene = scene;
+        this.cameraBox = cameraBox;
+        this.healthPacks = [];
+        this.contadorAbates = 0;
+        this.energiaAviao = 0; // Começa em 0% para dar para ver curando
+
+        // Exigência do Professor: Distâncias para avaliar o atrator
+        this.distanciaAtracao = 45.0; // Distância em que começa a puxar
+        this.distanciaColeta = 6.0;   // Distância em que é coletado
+
+        this._criarTexturaEMaterial();
+        this.uiEnergia = this._criarUIEnergia();
+        this.uiDebugDistancia = this._criarUIDebug();
+    }
+
+    _criarTexturaEMaterial() {
+        // Cria uma textura de Cruz Vermelha via código (sem arquivos externos!)
+        const canvas = document.createElement('canvas');
+        canvas.width = 128; canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; // Fundo branco
+        ctx.fillRect(0, 0, 128, 128);
+        ctx.fillStyle = '#ff0000'; // Cruz Vermelha
+        ctx.fillRect(48, 16, 32, 96);
+        ctx.fillRect(16, 48, 96, 32);
+
+        const textura = new THREE.CanvasTexture(canvas);
+        this.geometriaHP = new THREE.BoxGeometry(4, 4, 4);
+        this.materialHP = new THREE.MeshStandardMaterial({ 
+            map: textura,
+            emissive: new THREE.Color(0x330000) // Dá um leve brilho
+        });
+    }
+
+    _criarUIEnergia() {
+        const div = document.createElement('div');
+        div.style.position = 'fixed';
+        div.style.bottom = '20px';
+        div.style.left = '20px';
+        div.style.padding = '10px 20px';
+        div.style.background = 'rgba(0, 0, 0, 0.6)';
+        div.style.border = '2px solid #4caf50';
+        div.style.borderRadius = '8px';
+        div.style.color = '#fff';
+        div.style.fontFamily = 'Verdana, sans-serif';
+        div.style.fontWeight = 'bold';
+        div.style.zIndex = '100';
+        div.textContent = `Energia: ${this.energiaAviao}%`;
+        document.body.appendChild(div);
+        return div;
+    }
+
+    _criarUIDebug() {
+        // Caixa de texto exigida para o professor avaliar as distâncias
+        const div = document.createElement('div');
+        div.style.position = 'fixed';
+        div.style.top = '120px';
+        div.style.left = '20px';
+        div.style.padding = '10px';
+        div.style.background = 'rgba(0, 0, 0, 0.7)';
+        div.style.border = '1px dashed #ff99cc';
+        div.style.color = '#ff99cc';
+        div.style.fontFamily = 'monospace';
+        div.style.fontSize = '12px';
+        div.style.zIndex = '100';
+        div.innerHTML = `[TESTE DE HA]<br>Raio Atrator: ${this.distanciaAtracao}m<br>Raio Coleta: ${this.distanciaColeta}m<br>Distância do HA: N/A`;
+        document.body.appendChild(div);
+        return div;
+    }
+
+    registrarAbate() {
+        this.contadorAbates++;
+        // A cada 3 inimigos abatidos, spawna um Health Pack
+        if (this.contadorAbates % 3 === 0) {
+            this._spawnHealthPack();
+        }
+    }
+
+    _spawnHealthPack() {
+        const hp = new THREE.Mesh(this.geometriaHP, this.materialHP);
+        
+        // Aparece aleatoriamente à frente do avião
+        const xAleatorio = (Math.random() - 0.5) * 60; // Entre -30 e 30
+        const zLonge = this.cameraBox.position.z - 150; // Bem à frente
+        
+        hp.position.set(xAleatorio, 5, zLonge); // Y=5 para ficar no ar
+        this.scene.add(hp);
+        this.healthPacks.push(hp);
+    }
+
+    curar(porcentagem) {
+        this.energiaAviao += porcentagem;
+        if (this.energiaAviao > 100) this.energiaAviao = 100;
+        this.uiEnergia.textContent = `Energia: ${this.energiaAviao}%`;
+        
+        // Efeito visual na UI
+        this.uiEnergia.style.background = 'rgba(76, 175, 80, 0.8)';
+        setTimeout(() => this.uiEnergia.style.background = 'rgba(0, 0, 0, 0.6)', 300);
+    }
+
+    atualizar(deltaSegundos, posicaoAviaoMundo) {
+        let menorDistancia = Infinity;
+
+        for (let i = this.healthPacks.length - 1; i >= 0; i--) {
+            const hp = this.healthPacks[i];
+            
+            // Faz a caixa girar para chamar a atenção
+            hp.rotation.x += 1.5 * deltaSegundos;
+            hp.rotation.y += 2.0 * deltaSegundos;
+
+            const distancia = hp.position.distanceTo(posicaoAviaoMundo);
+            if (distancia < menorDistancia) menorDistancia = distancia;
+
+            // Efeito Atrator (Puxa para o avião)
+            if (distancia < this.distanciaAtracao) {
+                const direcao = new THREE.Vector3().subVectors(posicaoAviaoMundo, hp.position).normalize();
+                const velocidadePuxao = 60 * deltaSegundos; 
+                hp.position.add(direcao.multiplyScalar(velocidadePuxao));
+            }
+
+            // Coleta efetiva
+            if (distancia < this.distanciaColeta) {
+                this.scene.remove(hp);
+                this.healthPacks.splice(i, 1);
+                this.curar(25); // Aumenta 25% da energia
+            }
+            
+            // Remove se o avião passar direto e deixar para trás
+            else if (hp.position.z > this.cameraBox.position.z + 50) {
+                this.scene.remove(hp);
+                this.healthPacks.splice(i, 1);
+            }
+        }
+
+        // Atualiza a interface do professor
+        if (this.healthPacks.length > 0) {
+            this.uiDebugDistancia.innerHTML = `[TESTE DE HA]<br>Raio Atrator: ${this.distanciaAtracao}m<br>Raio Coleta: ${this.distanciaColeta}m<br>Distância do HA: ${menorDistancia.toFixed(1)}m`;
+        } else {
+            this.uiDebugDistancia.innerHTML = `[TESTE DE HA]<br>Raio Atrator: ${this.distanciaAtracao}m<br>Raio Coleta: ${this.distanciaColeta}m<br>Nenhum HA no mapa`;
+        }
+    }
+}
+

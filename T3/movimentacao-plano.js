@@ -7,6 +7,7 @@ import { SistemaInimigos } from './inimigos.js';
 import { SistemaTiros } from './tiros.js';
 import { SistemaInvencibilidade } from './sistemas-extras.js';
 import { TelaCarregamento } from './sistemas-extras.js';
+import {SistemaHealthPacks} from './sistemas-extras.js';
 import GUI from '../libs/util/dat.gui.module.js';
 import { Water } from '../build/jsm/objects/Water.js';
 
@@ -33,6 +34,9 @@ const telaCarregamento = new TelaCarregamento(() => {
     simulaPausada = false;
     retomarSimulacao();
 });
+
+// Logo depois de inicializar a invencibilidade, adicione:
+const sistemaHP = new SistemaHealthPacks(scene, cameraBox);
 
 // Isso faz todos os arquivos (GLTF, Texturas, Sons) informarem a barra de progresso automaticamente!
 //THREE.DefaultLoadingManager = telaCarregamento.manager;
@@ -461,14 +465,17 @@ function render() {
         }
     );
 
-    sistemaTiros.atualizar({
+ sistemaTiros.atualizar({
         deltaSegundos, 
         tempoAtualMs, 
         posicaoAviaoMundo, 
         posicaoMiraMundo, 
         boxJogador: caixaJogador, 
         inimigosColisiveis: sistemaInimigos.obterInimigosColisiveis(), 
-        aoAtingirInimigo: (idInimigo) => sistemaInimigos.marcarComoAtingido(idInimigo), 
+        aoAtingirInimigo: (idInimigo) => {
+            sistemaInimigos.marcarComoAtingido(idInimigo);
+            sistemaHP.registrarAbate(); // <-- ADICIONE ESTA LINHA AQUI! (Conta até 3 e spawna o HA)
+        }, 
         isinvencivel: invencibilidade.estaInvencivel(), 
     });
 
@@ -486,6 +493,10 @@ function render() {
     }
 
     agua.material.uniforms['time'].value += 1/60; 
+
+    sistemaHP.atualizar(deltaSegundos, posicaoAviaoMundo);
+
+   
 
     renderer.render(scene, camera); 
     requestAnimationFrame(render); 

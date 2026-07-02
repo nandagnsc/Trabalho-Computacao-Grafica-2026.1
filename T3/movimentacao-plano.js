@@ -14,7 +14,25 @@ import { Water } from '../build/jsm/objects/Water.js';
 const scene = new THREE.Scene(); 
 const clock = new THREE.Clock(); 
 const renderer = initRenderer(); 
-renderer.setClearColor("pink"); 
+
+// ==========================================
+// CÉU E NEBLINA (SKYBOX) - MUDADO PARA ROSA
+// ==========================================
+const corHorizonte = new THREE.Color("pink"); // Cor rosa para o horizonte
+renderer.setClearColor(corHorizonte); 
+
+// === REMOVIDO: Carregamento do céu azul anterior ===
+/*
+const carregadorCeu = new THREE.TextureLoader();
+const texturaCeu = carregadorCeu.load('../assets/textures/ceu.jpg'); 
+texturaCeu.mapping = THREE.EquirectangularReflectionMapping;
+texturaCeu.colorSpace = THREE.SRGBColorSpace; 
+scene.background = texturaCeu; 
+*/
+
+// Mantém a neblina rosa para casar com o céu
+scene.fog = new THREE.Fog(corHorizonte, 0.1, 600); 
+// ==========================================
 
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000); 
 camera.position.set(0.0, 0.0, 0.0); 
@@ -25,27 +43,17 @@ const cameraBox = new THREE.Object3D();
 cameraBox.add(camera); 
 scene.add(cameraBox); 
 
-// --- INÍCIO DOS CÓDIGOS NOVOS ---
-// O jogo deve começar pausado enquanto carrega
+// --- INÍCIO DOS CÓdigOS NOVOS ---
 let simulaPausada = true; 
 
 const telaCarregamento = new TelaCarregamento(() => {
-    // Essa função só roda quando o jogador clica no botão "INICIAR JOGO"
     simulaPausada = false;
     retomarSimulacao();
 });
 
-// Logo depois de inicializar a invencibilidade, adicione:
 const sistemaHP = new SistemaHealthPacks(scene, cameraBox);
-
-// Isso faz todos os arquivos (GLTF, Texturas, Sons) informarem a barra de progresso automaticamente!
-//THREE.DefaultLoadingManager = telaCarregamento.manager;
-
-// Inicializa o sistema de invencibilidade (Tecla G)
 const invencibilidade = new SistemaInvencibilidade();
-// --- FIM DOS CÓDIGOS NOVOS ---
-
-scene.fog = new THREE.Fog(new THREE.Color("pink"), 0.1, 600); 
+// --- FIM DOS CÓdigOS NOVOS ---
 
 const stats = new Stats(); 
 const container = document.getElementById('container');
@@ -90,65 +98,138 @@ const Perlin = new function() {
 function getAltura(x, z) { 
     let nx = x * 0.005, nz = z * 0.005;  
     let h = (Perlin.noise(nx, nz) * 40) + (Perlin.noise(nx*3, nz*3) * 12) + (Perlin.noise(nx*8, nz*8) * 4); 
-    return h + 30; 
+    return h + 30; // Gera alturas de 30 até ~86
 }
 
-
 // ==========================================================
-// 1. NOVO SISTEMA DE TERRENO EM ESTEIRA (CHUNKS)
+// 1. SISTEMA DE TERRENO EM ESTEIRA COM TEXTURAS REALISTAS
 // ==========================================================
 
 const largura = 1000, profundidade = 1000, divisoes = 150; 
-const matTerreno = new THREE.MeshStandardMaterial({ 
-    vertexColors: true,
-    wireframe: false, 
-    side: THREE.DoubleSide,
-    flatShading: true 
+const textureLoader = new THREE.TextureLoader(); 
+
+// Caminhos corretos acessando a pasta assets!
+const texturaGrama = textureLoader.load("../assets/textures/grass.jpg");
+const texturaRocha = textureLoader.load("../assets/textures/stone.jpg"); 
+const texturaAreia = textureLoader.load("../assets/textures/sand.jpg");
+const texturaNeve = textureLoader.load("../assets/textures/grid.jpg"); 
+
+[texturaGrama, texturaRocha, texturaAreia, texturaNeve].forEach(t => {
+    t.wrapS = THREE.RepeatWrapping;
+    t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = 4; 
 });
 
-const corRocha = new THREE.Color(0x654321); 
-const corGrama = new THREE.Color(0x2D5A27);
-const corVale = new THREE.Color(0x203B15);
-const corAgua = new THREE.Color(0x0077BE);
-const corTemp = new THREE.Color(); 
+const uniformsTerreno = THREE.UniformsUtils.merge([
+    THREE.UniformsLib["fog"]
+]);
 
-// Esta função assa (bakes) a geometria e cor UMA VEZ por plano
-function atualizarGeometriaPlano(plano) {
+uniformsTerreno.grassTexture = { value: texturaGrama };
+uniformsTerreno.rockTexture = { value: texturaRocha };
+uniformsTerreno.sandTexture = { value: texturaAreia };
+uniformsTerreno.snowTexture = { value: texturaNeve };
+
+// === MATERIAL DO TERRENO COM LIMITES AJUSTADOS PARA UNIFICAR ===
+const matTerreno = new THREE.ShaderMaterial({  
+    uniforms: uniformsTerreno,
+
+    vertexShader: `
+        #include <fog_pars_vertex>
+        
+        varying vec2 vUv;
+        varying float vHeight;
+
+        void main(){
+            vUv = uv * 60.0; 
+            vHeight = position.y; 
+
+            vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+            vec4 mvPosition = viewMatrix * worldPosition; 
+            
+            gl_Position = projectionMatrix * mvPosition;
+            
+            #include <fog_vertex>
+        }
+    `,
+
+    fragmentShader: `
+        uniform sampler2D grassTexture;
+        uniform sampler2D rockTexture;
+        uniform sampler2D sandTexture;
+        uniform sampler2D snowTexture;
+
+        varying vec2 vUv;
+        varying float vHeight;
+        
+        #include <fog_pars_fragment>
+
+        void main(){
+            vec4 grass = texture2D(grassTexture, vUv);
+            vec4 rock = texture2D(rockTexture, vUv);
+            vec4 sand = texture2D(sandTexture, vUv);
+            vec4 snow = texture2D(snowTexture, vUv);
+
+            vec4 color;
+
+         // === LIMITES CORRIGIDOS PARA PRAIA FINA E MUITA GRAMA ===
+            
+            if(vHeight < 36.0){ 
+                // A água bate perto do 35. Então do fundo até o 36 será areia pura (praia fina)
+                color = sand; 
+            }
+            else if(vHeight < 40.0){ 
+                // Do 36 ao 40, a areia se mistura rapidamente com a grama
+                // ATENÇÃO: Os valores do smoothstep devem ser os mesmos do IF anterior e deste IF!
+                float t = smoothstep(36.0, 40.0, vHeight);
+                color = mix(sand, grass, t); 
+            }
+            else if(vHeight < 65.0){ 
+                // A Grama domina completamente toda a planície e as subidas (do 40 ao 65)
+                color = grass; 
+            }
+            else if(vHeight < 72.0){ 
+                // Grama sumindo e virando rocha perto do topo
+                float t = smoothstep(65.0, 72.0, vHeight);
+                color = mix(grass, rock, t); 
+            }
+            else if(vHeight < 80.0){ 
+                // Rocha recebendo um pouco de neve no cume
+                float t = smoothstep(72.0, 80.0, vHeight);
+                color = mix(rock, snow, t); 
+            }
+            else{
+                color = snow; // Ponta extrema nevada (acima de 80)
+            }
+
+            gl_FragColor = color;
+            
+            #include <fog_fragment>
+        }
+    `,
+    side: THREE.DoubleSide,
+    fog: true 
+});
+// ==========================================================
+
+function atualizarGeometriaPlano(plano){
     const pos = plano.geometry.attributes.position;
-    const col = plano.geometry.attributes.color;
-
-    for (let i = 0; i < pos.count; i++) {
+    for(let i = 0; i < pos.count; i++){
         let xGlobal = pos.getX(i) + plano.position.x;
         let zGlobal = pos.getZ(i) + plano.position.z;
-
         let h = getAltura(xGlobal, zGlobal);
         pos.setY(i, h);
-
-        if (h > 60) {
-            corTemp.copy(corRocha);
-        } else if (h > 45) {
-            corTemp.lerpColors(corGrama, corRocha, (h - 35) / 10); 
-        } else {
-            corTemp.copy(corGrama);
-        } 
-        col.setXYZ(i, corTemp.r, corTemp.g, corTemp.b);
     }
-
     pos.needsUpdate = true;
-    col.needsUpdate = true;
-    // O recalculo agora ocorre 1 vez, acabando com as granulações!
     plano.geometry.computeVertexNormals();
 }
 
-// Criação da fila de 3 planos perfeitamente encaixados
 const planosTerreno = [];
 for (let i = 0; i < 3; i++) {
     const geo = new THREE.PlaneGeometry(largura, profundidade, divisoes, divisoes);
     geo.rotateX(-Math.PI / 2);
-    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 3), 3));
     
     const plano = new THREE.Mesh(geo, matTerreno);
-    plano.position.set(0, -80, -i * profundidade); // -0, -1000, -2000
+    plano.position.set(0, -80, -i * profundidade); 
     plano.receiveShadow = true;
     
     atualizarGeometriaPlano(plano);
@@ -156,10 +237,8 @@ for (let i = 0; i < 3; i++) {
     planosTerreno.push(plano);
 }
 
-// ==========================================================
-
 let listaArvores = []; 
-for(let i = 0; i < 150; i++) {
+for(let i = 0; i < 80; i++) {
     let dados = criaCenario(0, 0, 0, 'verao');
     let arvore = dados.ambiente.children[1];
     if(arvore) {
@@ -170,12 +249,26 @@ for(let i = 0; i < 150; i++) {
             child.receiveShadow = true;
           }
         });
-        arvore.position.x = (Math.random() - 0.5) * 800;
-        arvore.position.z = -Math.random() * 800;
-        arvore.position.y = getAltura(arvore.position.x, arvore.position.z) - 80;
+
+        // === NOVA LÓGICA DE POSICIONAMENTO ===
+        let posX, posZ, alturaLocal;
+        
+        // Sorteia posições repetidamente ATÉ achar um local com altura maior que 45 (terra/grama)
+        do {
+            posX = (Math.random() - 0.5) * 800;
+            posZ = -Math.random() * 800;
+            alturaLocal = getAltura(posX, posZ);
+        } while (alturaLocal < 45); // Se for menor que 45 (água ou areia), ele sorteia de novo!
+
+        arvore.position.x = posX;
+        arvore.position.z = posZ;
+        arvore.position.y = alturaLocal - 80;
+        // =====================================
+
         listaArvores.push(arvore);
     }
 }
+
 const aviaoContainer = criarAviao(); 
 aviaoContainer.position.set(0, 0, -25); 
 cameraBox.add(aviaoContainer);
@@ -207,21 +300,15 @@ const centroHitboxJogador = new THREE.Vector3();
 
 const luzDirecional = new THREE.DirectionalLight(new THREE.Color("white"), 3.5); 
 luzDirecional.castShadow = true;
-
 luzDirecional.shadow.mapSize.width = 512; 
 luzDirecional.shadow.mapSize.height = 512; 
-
 luzDirecional.shadow.camera.near = 0.1; 
 luzDirecional.shadow.camera.far = 600; 
-
 luzDirecional.shadow.camera.left = -300;
 luzDirecional.shadow.camera.right = 300; 
-
 luzDirecional.shadow.camera.top = 300;
 luzDirecional.shadow.camera.bottom = -150; 
-
 luzDirecional.shadow.camera.updateProjectionMatrix();
-
 scene.add(luzDirecional);
 
 const luzTarget = new THREE.Object3D(); 
@@ -231,15 +318,11 @@ luzDirecional.target = luzTarget;
 const luzAmbiente = new THREE.AmbientLight(new THREE.Color("white"), 0.3);
 scene.add(luzAmbiente);
 
-//const target = new THREE.Vector3(0, 0, 0); 
-//let simulaPausada = false;
-
 const target = new THREE.Vector3(0, 0, 0); 
 
 const anguloMaxRotacao = 0.5; 
 const limiarParadaRotacao = 1; 
 const velocidadeInclinacao = 0.3; 
-
 const anguloMaxRotacaoX = 0.2; 
 const limiarParadaRotacaoX = 1; 
 const velocidadeInclinacaoX = 0.3; 
@@ -319,8 +402,6 @@ function retomarSimulacao() {
     mira.visible = true; 
 }
 
-//let isInvencivel = false; 
-
 window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') pausarSimulacao(); 
     if (['1', '2', '3'].includes(event.key)) aplicarModoVelocidade(Number(event.key)); 
@@ -328,24 +409,18 @@ window.addEventListener('keydown', (event) => {
         if(musicaFundo.isPlaying) musicaFundo.pause();
         else musicaFundo.play();
     }
-   /* if(event.key.toLowerCase() === 'g'){
-        isInvencivel = !isInvencivel;
-    }*/
 });
 
 renderer.domElement.addEventListener('click', () => retomarSimulacao());
-
 renderer.domElement.addEventListener('mousedown', (evento) => {
     if (evento.button !== 0) return; 
     retomarSimulacao(); 
     sistemaTiros.definirDisparoContinuoAtivo(true); 
 });
-
 window.addEventListener('mouseup', (evento) => {
     if (evento.button !== 0) return; 
     sistemaTiros.definirDisparoContinuoAtivo(false); 
 });
-
 window.addEventListener('blur', () => sistemaTiros.definirDisparoContinuoAtivo(false)); 
 
 const infoBox = new SecondaryBox(""); 
@@ -376,7 +451,7 @@ function criarAgua() {
     });
 
     water.rotation.x = -Math.PI / 2;
-    water.position.y = -65; 
+    water.position.y = -45; // Água nos vales
     scene.add(water);
 
     return water;
@@ -421,32 +496,35 @@ function render() {
     cameraBox.position.x += (aviaoContainer.position.x * 2 - cameraBox.position.x) * 0.2; 
     cameraBox.position.y += (aviaoContainer.position.y * 0.7 - cameraBox.position.y) * 0.2; 
 
-    // ==========================================================
-    // 2. ATUALIZAÇÃO DA ESTEIRA NO RENDER
-    // ==========================================================
-    // Localiza o plano que está mais no fundo (frente do avião)
     let zMaisDistante = Math.min(...planosTerreno.map(p => p.position.z));
 
     planosTerreno.forEach(plano => {
-        // Se a câmera ultrapassou a metade do plano, ele sai de vista
         if (plano.position.z > cameraBox.position.z + profundidade / 2) {
-            // Joga ele pro final da fila
             plano.position.z = zMaisDistante - profundidade;
-            zMaisDistante = plano.position.z; // Atualiza a marca final
-            
-            // Refaz a modelagem e normais da malha uma única vez
+            zMaisDistante = plano.position.z; 
             atualizarGeometriaPlano(plano);
         }
     });
-    // ==========================================================
 
     agua.position.z = cameraBox.position.z - 250;
 
     listaArvores.forEach(a => { 
         a.position.y = getAltura(a.position.x, a.position.z) - 80.5; 
+        
+        // Se a árvore ficou para trás da câmera...
         if (a.position.z > cameraBox.position.z + 50) { 
-            a.position.z = cameraBox.position.z - 600 - Math.random() * 200; 
-            a.position.x = cameraBox.position.x + (Math.random() - 0.5) * 800; 
+            
+            let novoX, novoZ, novaAltura;
+            
+            // ...Sorteia um novo lugar lá na frente, mas SÓ em terra firme!
+            do {
+                novoX = cameraBox.position.x + (Math.random() - 0.5) * 800; 
+                novoZ = cameraBox.position.z - 600 - Math.random() * 200; 
+                novaAltura = getAltura(novoX, novoZ);
+            } while (novaAltura < 45); // Garante que a reciclagem também fuja da água
+
+            a.position.x = novoX;
+            a.position.z = novoZ;
         }
     });
 
@@ -465,7 +543,7 @@ function render() {
         }
     );
 
- sistemaTiros.atualizar({
+    sistemaTiros.atualizar({
         deltaSegundos, 
         tempoAtualMs, 
         posicaoAviaoMundo, 
@@ -474,7 +552,7 @@ function render() {
         inimigosColisiveis: sistemaInimigos.obterInimigosColisiveis(), 
         aoAtingirInimigo: (idInimigo) => {
             sistemaInimigos.marcarComoAtingido(idInimigo);
-            sistemaHP.registrarAbate(); // <-- ADICIONE ESTA LINHA AQUI! (Conta até 3 e spawna o HA)
+            sistemaHP.registrarAbate(); 
         }, 
         isinvencivel: invencibilidade.estaInvencivel(), 
     });
@@ -488,15 +566,12 @@ function render() {
       
       let alcanceVisaoZ = scene.fog.far * 0.4; 
       luzTarget.position.set(cameraBox.position.x + 50, cameraBox.position.y - 30, cameraBox.position.z - alcanceVisaoZ); 
-      
       luzDirecional.position.set(luzTarget.position.x + 150, cameraBox.position.y + 180, luzTarget.position.z + 100); 
     }
 
     agua.material.uniforms['time'].value += 1/60; 
 
     sistemaHP.atualizar(deltaSegundos, posicaoAviaoMundo);
-
-   
 
     renderer.render(scene, camera); 
     requestAnimationFrame(render); 

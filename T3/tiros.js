@@ -19,7 +19,7 @@ const CADENCIA_TIRO_JOGADOR_MS = 170;
 const DISTANCIA_MAXIMA_TIRO = 250;
 
 // geometria plana usada para o tiro do jogador
-const GEOMETRIA_TIRO_JOGADOR = new THREE.PlaneGeometry(4.2, 0.5);
+const GEOMETRIA_TIRO_JOGADOR = new THREE.BoxGeometry(0.6, 0.5, 10);
 // material solido para o tiro do jogador
 const MATERIAL_TIRO_JOGADOR = new THREE.MeshBasicMaterial({
   color: 'purple',
@@ -197,7 +197,7 @@ export class SistemaTiros {
     meshTiro.position.copy(origemMundo);
 
     // aponta o cone para a direcao do alvo
-    const eixoFrenteCone = new THREE.Vector3(0, 1, 0); //
+    const eixoFrenteCone = new THREE.Vector3(0, -1, 0); //
     meshTiro.quaternion.setFromUnitVectors(eixoFrenteCone, direcao); 
     meshTiro.rotateX(Math.PI);
 
@@ -236,10 +236,11 @@ export class SistemaTiros {
     const tiro = new THREE.Mesh(GEOMETRIA_TIRO_JOGADOR, MATERIAL_TIRO_JOGADOR.clone());
     // posiciona o tiro um pouco a frente da origem para evitar sobreposicao com o aviao
     tiro.position.copy(origemMundo).addScaledVector(direcao, 4); // 
-
+    
     // orienta o tiro para apontar visualmente na mesma direcao do disparo
     const destino = origemMundo.clone().add(direcao);
     tiro.lookAt(destino);
+    
 
     // adiciona o tiro na cena para ele aparecer no render
     this.cena.add(tiro);

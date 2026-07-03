@@ -151,12 +151,13 @@ export class TelaCarregamento {
 // 3. SISTEMA DE HEALTH PACKS (Energia e Atrator)
 // ==========================================
 export class SistemaHealthPacks {
-    constructor(scene, cameraBox) {
+    constructor(scene, cameraBox, listener) {
         this.scene = scene;
         this.cameraBox = cameraBox;
         this.healthPacks = [];
         this.contadorAbates = 0;
         this.energiaAviao = 0; // Começa em 0% para dar para ver curando
+        this.listener = listener;
 
         // Exigência do Professor: Distâncias para avaliar o atrator
         this.distanciaAtracao = 45.0; // Distância em que começa a puxar
@@ -165,7 +166,25 @@ export class SistemaHealthPacks {
         this._criarTexturaEMaterial();
         this.uiEnergia = this._criarUIEnergia();
         this.uiDebugDistancia = this._criarUIDebug();
+
+        // Carrega o som do Health Pack
+        this.somHealthPack = new THREE.Audio(listener);
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load('./recarregaVida.wav', (buffer) => {
+            this.somHealthPack.setBuffer(buffer);
+            this.somHealthPack.setVolume(0.08);
+        });
     }
+
+    tocarSomHealthPack() {
+        if (this.somHealthPack.isPlaying) {
+            this.somHealthPack.stop();
+        }
+        this.somHealthPack.play();
+    }
+    
+
+    
 
     _criarTexturaEMaterial() {
         // Cria uma textura de Cruz Vermelha via código (sem arquivos externos!)
@@ -276,6 +295,8 @@ export class SistemaHealthPacks {
             if (distancia < this.distanciaColeta) {
                 this.scene.remove(hp);
                 this.healthPacks.splice(i, 1);
+                //adiciona som ao pegar o health pack
+                this.tocarSomHealthPack();
                 this.curar(25); // Aumenta 25% da energia
             }
             

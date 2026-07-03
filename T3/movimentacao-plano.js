@@ -114,6 +114,13 @@ const texturaRocha = textureLoader.load("../assets/textures/stone.jpg");
 const texturaAreia = textureLoader.load("../assets/textures/sand.jpg");
 const texturaNeve = textureLoader.load("../assets/textures/stone.jpg"); 
 
+const texturaTronco = textureLoader.load("../assets/textures/wood.jpg");
+const texturaFolhas = textureLoader.load("../assets/textures/folha3.jpg"); 
+
+// Repetir a textura das folhas para não ficar esticada
+texturaFolhas.wrapS = texturaFolhas.wrapT = THREE.RepeatWrapping;
+texturaFolhas.repeat.set(2, 2);
+ 
 [texturaGrama, texturaRocha, texturaAreia, texturaNeve].forEach(t => {
     t.wrapS = THREE.RepeatWrapping;
     t.wrapT = THREE.RepeatWrapping;
@@ -237,6 +244,7 @@ for (let i = 0; i < 3; i++) {
     planosTerreno.push(plano);
 }
 
+/*
 let listaArvores = []; 
 for(let i = 0; i < 80; i++) {
     let dados = criaCenario(0, 0, 0, 'verao');
@@ -268,6 +276,60 @@ for(let i = 0; i < 80; i++) {
         listaArvores.push(arvore);
     }
 }
+*/
+
+// ==========================================================
+// CRIAÇÃO E TEXTURIZAÇÃO DAS ÁRVORES
+// ==========================================================
+let listaArvores = []; 
+let desiredTreeCount = 150;
+
+for(let i = 0; i < desiredTreeCount; i++) {
+    let dados = criaCenario(0, 0, 0, 'verao');
+    let arvore = dados.ambiente.children[1];
+    
+    if(arvore) {
+        let posX, posZ, alturaLocal;
+        
+        // Sorteia posições repetidamente ATÉ achar um local em terra firme (grama)
+        do {
+            posX = (Math.random() - 0.5) * 800;
+            posZ = -Math.random() * 800;
+            alturaLocal = getAltura(posX, posZ);
+        } while (alturaLocal < 45); 
+
+        scene.add(arvore);
+
+        // A MÁGICA DAS TEXTURAS ACONTECE AQUI:
+        arvore.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            
+            // Verifica qual é o formato (geometria) do pedaço da árvore
+            if (child.geometry && child.geometry.type === 'CylinderGeometry') {
+                // Se for um Cilindro, é o tronco! Aplicamos a madeira.
+                child.material = new THREE.MeshStandardMaterial({ 
+                    map: texturaTronco 
+                });
+            } else {
+                // Se for outra coisa (Cone, Esfera), é a copa! Aplicamos as folhas.
+                child.material = new THREE.MeshStandardMaterial({ 
+                    map: texturaFolhas,
+                    // Misturamos um tom de verde caso a imagem da textura seja muito clara
+                    color: new THREE.Color(0x3a5f2b) 
+                });
+            }
+          }
+        });
+
+        arvore.position.x = posX;
+        arvore.position.z = posZ;
+        arvore.position.y = alturaLocal - 80;
+        listaArvores.push(arvore);
+    }
+}
+// ==========================================================
 
 const aviaoContainer = criarAviao(); 
 aviaoContainer.position.set(0, 0, -25); 

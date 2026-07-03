@@ -701,7 +701,7 @@ function render() {
 
     agua.material.uniforms['time'].value += 1/60; 
 
-    sistemaHP.atualizar(deltaSegundos, posicaoAviaoMundo);
+    sistemaHP.atualizar(deltaSegundos, posicaoAviaoMundo, sistemaTiros);
 
     renderer.render(scene, camera); 
     requestAnimationFrame(render); 

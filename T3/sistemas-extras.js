@@ -148,7 +148,7 @@ export class TelaCarregamento {
     }
 }
     // ==========================================
-// 3. SISTEMA DE HEALTH PACKS (Energia e Atrator)
+// 3. SISTEMA DE HEALTH PACKS
 // ==========================================
 export class SistemaHealthPacks {
     constructor(scene, cameraBox, listener) {
@@ -156,7 +156,6 @@ export class SistemaHealthPacks {
         this.cameraBox = cameraBox;
         this.healthPacks = [];
         this.contadorAbates = 0;
-        this.energiaAviao = 0; // Começa em 0% para dar para ver curando
         this.listener = listener;
 
         // Exigência do Professor: Distâncias para avaliar o atrator
@@ -164,7 +163,6 @@ export class SistemaHealthPacks {
         this.distanciaColeta = 6.0;   // Distância em que é coletado
 
         this._criarTexturaEMaterial();
-        this.uiEnergia = this._criarUIEnergia();
         this.uiDebugDistancia = this._criarUIDebug();
 
         // Carrega o som do Health Pack
@@ -205,24 +203,6 @@ export class SistemaHealthPacks {
         });
     }
 
-    _criarUIEnergia() {
-        const div = document.createElement('div');
-        div.style.position = 'fixed';
-        div.style.bottom = '20px';
-        div.style.left = '20px';
-        div.style.padding = '10px 20px';
-        div.style.background = 'rgba(0, 0, 0, 0.6)';
-        div.style.border = '2px solid #4caf50';
-        div.style.borderRadius = '8px';
-        div.style.color = '#fff';
-        div.style.fontFamily = 'Verdana, sans-serif';
-        div.style.fontWeight = 'bold';
-        div.style.zIndex = '100';
-        div.textContent = `Energia: ${this.energiaAviao}%`;
-        document.body.appendChild(div);
-        return div;
-    }
-
     _criarUIDebug() {
         // Caixa de texto exigida para o professor avaliar as distâncias
         const div = document.createElement('div');
@@ -261,23 +241,26 @@ export class SistemaHealthPacks {
         this.healthPacks.push(hp);
     }
 
-    curar(porcentagem) {
-        this.energiaAviao += porcentagem;
-        if (this.energiaAviao > 100) this.energiaAviao = 100;
-        this.uiEnergia.textContent = `Energia: ${this.energiaAviao}%`;
+    curar(sistemaTiros) {
+        // Cada HA cura 25%. Como o máximo são 20 tiros, 25% equivale a recuperar 5 tiros!
+        const tirosRecuperados = 5;
         
-        // Efeito visual na UI
-        this.uiEnergia.style.background = 'rgba(76, 175, 80, 0.8)';
-        setTimeout(() => this.uiEnergia.style.background = 'rgba(0, 0, 0, 0.6)', 300);
+        // Subtrai os tiros sofridos (garantindo que não fique menor que 0)
+        sistemaTiros.contadorTirosSofridos -= tirosRecuperados;
+        if (sistemaTiros.contadorTirosSofridos < 0) {
+            sistemaTiros.contadorTirosSofridos = 0;
+        }
+
+        // Atualiza visualmente a nova barra gráfica de integridade
+        sistemaTiros._atualizarHUD();
     }
 
-    atualizar(deltaSegundos, posicaoAviaoMundo) {
+    atualizar(deltaSegundos, posicaoAviaoMundo, sistemaTiros) {
         let menorDistancia = Infinity;
 
         for (let i = this.healthPacks.length - 1; i >= 0; i--) {
             const hp = this.healthPacks[i];
             
-            // Faz a caixa girar para chamar a atenção
             hp.rotation.x += 1.5 * deltaSegundos;
             hp.rotation.y += 2.0 * deltaSegundos;
 
@@ -291,23 +274,24 @@ export class SistemaHealthPacks {
                 hp.position.add(direcao.multiplyScalar(velocidadePuxao));
             }
 
-            // Coleta efetiva
+            // Coleta efetiva do item
             if (distancia < this.distanciaColeta) {
                 this.scene.remove(hp);
                 this.healthPacks.splice(i, 1);
-                //adiciona som ao pegar o health pack
+                
                 this.tocarSomHealthPack();
-                this.curar(25); // Aumenta 25% da energia
+                
+                // CHAMA A CURA PASSANDO O SISTEMA DE TIROS
+                this.curar(sistemaTiros); 
             }
             
-            // Remove se o avião passar direto e deixar para trás
             else if (hp.position.z > this.cameraBox.position.z + 50) {
                 this.scene.remove(hp);
                 this.healthPacks.splice(i, 1);
             }
         }
 
-        // Atualiza a interface do professor
+        // Atualiza a interface de teste do professor
         if (this.healthPacks.length > 0) {
             this.uiDebugDistancia.innerHTML = `[TESTE DE HA]<br>Raio Atrator: ${this.distanciaAtracao}m<br>Raio Coleta: ${this.distanciaColeta}m<br>Distância do HA: ${menorDistancia.toFixed(1)}m`;
         } else {

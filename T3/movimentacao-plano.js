@@ -544,6 +544,17 @@ function render() {
     cameraBox.position.x += (aviaoContainer.position.x * 2 - cameraBox.position.x) * 0.2; 
     cameraBox.position.y += (aviaoContainer.position.y * 0.7 - cameraBox.position.y) * 0.2; 
 
+    let alturaTerrenoNaCamera = getAltura(cameraBox.position.x, cameraBox.position.z) - 80;
+    
+    // 2. Definimos uma margem de segurança (ex: 5 unidades) para manter a lente da câmera 
+    // sempre voando acima do relevo alto, impedindo o clipping visual (ver o lado oco)
+    let alturaMinimaCamera = alturaTerrenoNaCamera + 5.0;
+    
+    if (cameraBox.position.y < alturaMinimaCamera) {
+        // Se a câmera tentar afundar na montanha, nós cravamos ela na altura segura por cima do morro
+        cameraBox.position.y = alturaMinimaCamera;
+    }    
+    
     let zMaisDistante = Math.min(...planosTerreno.map(p => p.position.z));
 
     planosTerreno.forEach(plano => {

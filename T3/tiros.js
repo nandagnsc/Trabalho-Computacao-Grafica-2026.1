@@ -19,7 +19,7 @@ const CADENCIA_TIRO_JOGADOR_MS = 170;
 const DISTANCIA_MAXIMA_TIRO = 250;
 
 // geometria plana usada para o tiro do jogador
-const GEOMETRIA_TIRO_JOGADOR = new THREE.PlaneGeometry(4.2, 0.5);
+const GEOMETRIA_TIRO_JOGADOR = new THREE.BoxGeometry(0.6, 0.5, 10);
 // material solido para o tiro do jogador
 const MATERIAL_TIRO_JOGADOR = new THREE.MeshBasicMaterial({
   color: 'purple',

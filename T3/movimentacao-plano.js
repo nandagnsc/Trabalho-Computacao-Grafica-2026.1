@@ -98,7 +98,7 @@ const Perlin = new function() {
 function getAltura(x, z) { 
     let nx = x * 0.005, nz = z * 0.005;  
     let h = (Perlin.noise(nx, nz) * 40) + (Perlin.noise(nx*3, nz*3) * 12) + (Perlin.noise(nx*8, nz*8) * 4); 
-    return h + 30; // Gera alturas de 30 até ~86
+    return h + 60; // Gera alturas de 30 até ~86
 }
 
 // ==========================================================
@@ -112,7 +112,7 @@ const textureLoader = new THREE.TextureLoader();
 const texturaGrama = textureLoader.load("../assets/textures/grass.jpg");
 const texturaRocha = textureLoader.load("../assets/textures/stone.jpg"); 
 const texturaAreia = textureLoader.load("../assets/textures/sand.jpg");
-const texturaNeve = textureLoader.load("../assets/textures/grid.jpg"); 
+const texturaNeve = textureLoader.load("../assets/textures/stone.jpg"); 
 
 [texturaGrama, texturaRocha, texturaAreia, texturaNeve].forEach(t => {
     t.wrapS = THREE.RepeatWrapping;
@@ -451,7 +451,7 @@ function criarAgua() {
     });
 
     water.rotation.x = -Math.PI / 2;
-    water.position.y = -45; // Água nos vales
+    water.position.y = -30; // Água nos vales
     scene.add(water);
 
     return water;
@@ -492,6 +492,54 @@ function render() {
     aviaoContainer.position.y += (target.y - aviaoContainer.position.y) * movimentoXYFactor; 
     aviaoContainer.rotation.z += (anguloDesejado - aviaoContainer.rotation.z) * velocidadeInclinacao; 
     aviaoContainer.rotation.x += (anguloDesejadoX - aviaoContainer.rotation.x) * velocidadeInclinacaoX; 
+
+    aviaoContainer.getWorldPosition(posicaoAviaoMundo); 
+    
+    // 2. COLISÃO COM MONTANHAS:
+    // Calculamos a altura matemática do terreno exatamente embaixo do avião
+    // Subtraímos 80 porque seus planos da esteira estão rebaixados em -80 na cena
+    let alturaMontanhaAqui = getAltura(posicaoAviaoMundo.x, posicaoAviaoMundo.z) - 80;
+    
+    let margemColisaoTerreno = 2.0; // Distância do "chassi" do avião
+    
+    if (posicaoAviaoMundo.y < alturaMontanhaAqui + margemColisaoTerreno) {
+        // O avião tentou entrar na montanha!
+        // Forçamos ele para cima para "deslizar/raspar" sobre a terra
+        let quantoPassou = (alturaMontanhaAqui + margemColisaoTerreno) - posicaoAviaoMundo.y;
+        aviaoContainer.position.y += quantoPassou; 
+        
+        // Atualiza a variável global novamente para os próximos testes
+        aviaoContainer.getWorldPosition(posicaoAviaoMundo);
+        
+        // NOTA: Quando criarmos a barra de vida, você vai colocar o código de DANO aqui!
+    }
+
+    // 3. COLISÃO COM ÁRVORES:
+    for (let i = 0; i < listaArvores.length; i++) {
+        let arvore = listaArvores[i];
+        
+        // Mede a distância horizontal (eixos X e Z) entre o avião e a árvore
+        let distX = Math.abs(posicaoAviaoMundo.x - arvore.position.x);
+        let distZ = Math.abs(posicaoAviaoMundo.z - arvore.position.z);
+        
+        // Se estiver num raio de 4 unidades da árvore...
+        if (distX < 4.0 && distZ < 4.0) {
+            
+            // Verifica se o avião está baixo o suficiente para bater na copa (árvore tem ~20 de altura)
+            let alturaCopa = arvore.position.y + 20.0;
+            if (posicaoAviaoMundo.y < alturaCopa) {
+                // O avião bateu na árvore!
+                // Rebate o avião um pouco para o lado/cima
+                aviaoContainer.position.y += 0.5;
+                aviaoContainer.position.x += (posicaoAviaoMundo.x > arvore.position.x ? 1.0 : -1.0);
+                
+                // Atualiza a variável global novamente
+                aviaoContainer.getWorldPosition(posicaoAviaoMundo);
+                
+                // NOTA: Aqui também entrará o dano da barra de vida depois!
+            }
+        }
+    }
 
     cameraBox.position.x += (aviaoContainer.position.x * 2 - cameraBox.position.x) * 0.2; 
     cameraBox.position.y += (aviaoContainer.position.y * 0.7 - cameraBox.position.y) * 0.2; 

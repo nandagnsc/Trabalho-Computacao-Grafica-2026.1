@@ -501,22 +501,22 @@ gui.add(scene.fog, 'far', 300, 750).name("Neblina (Fog)");
 
 //AGUA:
 function criarAgua() {
-    const waterGeometry = new THREE.PlaneGeometry(3000, 3000); 
+    const waterGeometry = new THREE.PlaneGeometry(1000, 1000); 
     const water = new Water(waterGeometry, {
-        textureWidth: 512,
-        textureHeight: 512,
+        textureWidth: 128,
+        textureHeight: 128,
         waterNormals: new THREE.TextureLoader().load('../assets/textures/NormalMapping/waternormals.jpg', (texture) => {
             texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
         }),
         sunDirection: new THREE.Vector3(1, 1, 1).normalize(), 
         sunColor: 0xffffff,
         waterColor: 0x0077BE,
-        distortionScale: 3.7,
+        distortionScale: 1,
         fog: scene.fog !== undefined
     });
 
     water.rotation.x = -Math.PI / 2;
-    water.position.y = -70; // Água nos vales
+    water.position.y = -75; // Água nos vales
     scene.add(water);
 
     return water;

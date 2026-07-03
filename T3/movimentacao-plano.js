@@ -97,7 +97,7 @@ const Perlin = new function() {
 
 function getAltura(x, z) { 
     let nx = x * 0.005, nz = z * 0.005;  
-    let h = (Perlin.noise(nx, nz) * 40) + (Perlin.noise(nx*3, nz*3) * 12) + (Perlin.noise(nx*8, nz*8) * 4); 
+    let h = (Perlin.noise(nx, nz) * 70) + (Perlin.noise(nx*3, nz*3) * 35) + (Perlin.noise(nx*8, nz*8) * 15); 
     return h + 60; // Gera alturas de 30 até ~86
 }
 
@@ -109,10 +109,10 @@ const largura = 1000, profundidade = 1000, divisoes = 150;
 const textureLoader = new THREE.TextureLoader(); 
 
 // Caminhos corretos acessando a pasta assets!
-const texturaGrama = textureLoader.load("../assets/textures/grass.jpg");
-const texturaRocha = textureLoader.load("../assets/textures/grass.jpg"); 
-const texturaAreia = textureLoader.load("../assets/textures/sand.jpg");
-const texturaNeve = textureLoader.load("../assets/textures/stone.jpg"); 
+const texturaGrama = textureLoader.load("../T3/grama.jpg");
+const texturaRocha = textureLoader.load("../T3/rocha.jpg"); 
+const texturaAreia = textureLoader.load("../T3/areia.jpg");
+const texturaNeve = textureLoader.load("../T3/neve.jpg"); 
 
 const texturaTronco = textureLoader.load("../assets/textures/wood.jpg");
 const texturaFolhas = textureLoader.load("../assets/textures/folha3.jpg"); 
@@ -180,28 +180,28 @@ const matTerreno = new THREE.ShaderMaterial({
 
          // === LIMITES CORRIGIDOS PARA PRAIA FINA E MUITA GRAMA ===
             
-            if(vHeight < 36.0){ 
+            if(vHeight < 43.0){ 
                 // A água bate perto do 35. Então do fundo até o 36 será areia pura (praia fina)
                 color = sand; 
             }
-            else if(vHeight < 43.0){ 
+            else if(vHeight < 55.0){ 
                 // Do 36 ao 40, a areia se mistura rapidamente com a grama
                 // ATENÇÃO: Os valores do smoothstep devem ser os mesmos do IF anterior e deste IF!
-                float t = smoothstep(36.0, 43.0, vHeight);
+                float t = smoothstep(43.0, 55.0, vHeight);
                 color = mix(sand, grass, t); 
             }
-            else if(vHeight < 65.0){ 
+            else if(vHeight < 70.0){ 
                 // A Grama domina completamente toda a planície e as subidas (do 40 ao 65)
                 color = grass; 
             }
-            else if(vHeight < 72.0){ 
+            else if(vHeight < 90.0){ 
                 // Grama sumindo e virando rocha perto do topo
-                float t = smoothstep(65.0, 72.0, vHeight);
+                float t = smoothstep(70.0, 90.0, vHeight);
                 color = mix(grass, rock, t); 
             }
-            else if(vHeight < 80.0){ 
+            else if(vHeight < 100.0){ 
                 // Rocha recebendo um pouco de neve no cume
-                float t = smoothstep(72.0, 80.0, vHeight);
+                float t = smoothstep(90.0, 100.0, vHeight);
                 color = mix(rock, snow, t); 
             }
             else{
@@ -236,7 +236,7 @@ for (let i = 0; i < 3; i++) {
     geo.rotateX(-Math.PI / 2);
     
     const plano = new THREE.Mesh(geo, matTerreno);
-    plano.position.set(0, -80, -i * profundidade); 
+    plano.position.set(0, -115, -i * profundidade); 
     plano.receiveShadow = true;
     
     atualizarGeometriaPlano(plano);
@@ -282,7 +282,7 @@ for(let i = 0; i < 80; i++) {
 // CRIAÇÃO E TEXTURIZAÇÃO DAS ÁRVORES
 // ==========================================================
 let listaArvores = []; 
-let desiredTreeCount = 150;
+let desiredTreeCount = 100;
 
 for(let i = 0; i < desiredTreeCount; i++) {
     let dados = criaCenario(0, 0, 0, 'verao');
@@ -325,7 +325,7 @@ for(let i = 0; i < desiredTreeCount; i++) {
 
         arvore.position.x = posX;
         arvore.position.z = posZ;
-        arvore.position.y = alturaLocal - 80;
+        arvore.position.y = alturaLocal - 115;
         listaArvores.push(arvore);
     }
 }
@@ -513,7 +513,7 @@ function criarAgua() {
     });
 
     water.rotation.x = -Math.PI / 2;
-    water.position.y = -30; // Água nos vales
+    water.position.y = -70; // Água nos vales
     scene.add(water);
 
     return water;
@@ -565,8 +565,8 @@ function render() {
     
     // 2. COLISÃO COM MONTANHAS:
     // Calculamos a altura matemática do terreno exatamente embaixo do avião
-    // Subtraímos 80 porque seus planos da esteira estão rebaixados em -80 na cena
-    let alturaMontanhaAqui = getAltura(posicaoAviaoMundo.x, posicaoAviaoMundo.z) - 80;
+    // Subtraímos 115 porque seus planos da esteira estão rebaixados em -115 na cena
+    let alturaMontanhaAqui = getAltura(posicaoAviaoMundo.x, posicaoAviaoMundo.z) - 115;
     
     let margemColisaoTerreno = 2.0; // Distância do "chassi" do avião
     
@@ -612,7 +612,7 @@ function render() {
     cameraBox.position.x += (aviaoContainer.position.x * 2 - cameraBox.position.x) * 0.2; 
     cameraBox.position.y += (aviaoContainer.position.y * 0.7 - cameraBox.position.y) * 0.2; 
 
-    let alturaTerrenoNaCamera = getAltura(cameraBox.position.x, cameraBox.position.z) - 80;
+    let alturaTerrenoNaCamera = getAltura(cameraBox.position.x, cameraBox.position.z) - 115;
     
     // 2. Definimos uma margem de segurança (ex: 5 unidades) para manter a lente da câmera 
     // sempre voando acima do relevo alto, impedindo o clipping visual (ver o lado oco)
@@ -636,7 +636,7 @@ function render() {
     agua.position.z = cameraBox.position.z - 250;
 
     listaArvores.forEach(a => { 
-        a.position.y = getAltura(a.position.x, a.position.z) - 80.5; 
+        a.position.y = getAltura(a.position.x, a.position.z) - 115.5; 
         
         // Se a árvore ficou para trás da câmera...
         if (a.position.z > cameraBox.position.z + 50) { 

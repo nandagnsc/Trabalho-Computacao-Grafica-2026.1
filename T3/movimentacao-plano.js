@@ -110,7 +110,7 @@ const textureLoader = new THREE.TextureLoader();
 
 // Caminhos corretos acessando a pasta assets!
 const texturaGrama = textureLoader.load("../assets/textures/grass.jpg");
-const texturaRocha = textureLoader.load("../assets/textures/stone.jpg"); 
+const texturaRocha = textureLoader.load("../assets/textures/grass.jpg"); 
 const texturaAreia = textureLoader.load("../assets/textures/sand.jpg");
 const texturaNeve = textureLoader.load("../assets/textures/stone.jpg"); 
 
@@ -184,10 +184,10 @@ const matTerreno = new THREE.ShaderMaterial({
                 // A água bate perto do 35. Então do fundo até o 36 será areia pura (praia fina)
                 color = sand; 
             }
-            else if(vHeight < 40.0){ 
+            else if(vHeight < 43.0){ 
                 // Do 36 ao 40, a areia se mistura rapidamente com a grama
                 // ATENÇÃO: Os valores do smoothstep devem ser os mesmos do IF anterior e deste IF!
-                float t = smoothstep(36.0, 40.0, vHeight);
+                float t = smoothstep(36.0, 43.0, vHeight);
                 color = mix(sand, grass, t); 
             }
             else if(vHeight < 65.0){ 

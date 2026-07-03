@@ -31,28 +31,37 @@ const MATERIAL_TIRO_JOGADOR = new THREE.MeshBasicMaterial({
 const GEOMETRIA_TIRO_INIMIGO = new THREE.ConeGeometry(0.18, 4.2, 8, 1);
 const MATERIAL_TIRO_INIMIGO = new THREE.MeshBasicMaterial({ color: 0xff4d4d });
 
-function criarElementoContador() {
-  // reaproveita o contador caso ele ja exista na pagina
-  let contador = document.getElementById('contador-tiros-player');
+function criarElementoBarraVida() {
+  let contador = document.getElementById('hud-vida-contador');
   if (contador) return contador;
 
-  // cria o contador visivel de tiros sofridos
+  // cria o contador visivel da Barra de Vida
   contador = document.createElement('div');
-  contador.id = 'contador-tiros-player';
+  contador.id = 'hud-vida-contador';
   contador.style.position = 'fixed';
   contador.style.top = '5px';
-  contador.style.left = '100px';
-  contador.style.padding = '10px 14px';
+  contador.style.left = '85px';
+  contador.style.padding = '7px 10px';
   contador.style.border = '2px solid #ffffff';
-  contador.style.borderRadius = '8px';
+  contador.style.borderRadius = '10px';
   contador.style.background = 'rgba(0, 0, 0, 0.45)';
   contador.style.color = '#ffffff';
   contador.style.fontFamily = 'Verdana, sans-serif';
-  contador.style.fontSize = '14px';
-  contador.style.fontWeight = 'bold';
   contador.style.zIndex = '20';
+  contador.style.display = 'flex';
+  contador.style.flexDirection = 'column';
+  contador.style.gap = '5px';
 
-  contador.textContent = 'Tiros sofridos: 0';
+  contador.innerHTML = `
+    <div style="color: #ffffff; font-size: 12px; font-weight: bold; text-transform: uppercase; text-align: center;">
+      Integridade do Escudo
+    </div>
+    <div style="width: 200px; height: 18px; background: rgba(255,255,255,0.2); border-radius: 9px; border: 1px solid #fff; position: relative; overflow: hidden;">
+        <div id="barra-vida-interna" style="width: 100%; height: 100%; background: #00a3e3; transition: width 0.2s ease, background-color 0.4s ease;"></div>
+        <span id="texto-vida" style="position: absolute; width: 100%; top: 1px; left: 0; text-align: center; font-size: 12px; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px #000;">100%</span>
+    </div>
+  `;
+
   document.body.appendChild(contador);
   return contador;
 }
@@ -74,8 +83,10 @@ export class SistemaTiros {
     this.ultimoTiroJogadorMs = 0;
 
     // contador visivel dos tiros que o player recebeu
+    this.maxTiros = 20; // Limite especificado pelo professor
     this.contadorTirosSofridos = 0;
-    this.elementoContador = criarElementoContador();
+    this.elementoContador = criarElementoBarraVida();
+    this.jogoTerminado = false;
 
     // vetores auxiliares para evitar recriar objetos o tempo todo
     this._auxPosicaoCamera = new THREE.Vector3(); 
@@ -157,8 +168,24 @@ export class SistemaTiros {
   }
 
   _atualizarHUD() {
-    // atualiza o texto do contador na tela
-    this.elementoContador.textContent = `Tiros sofridos: ${this.contadorTirosSofridos}`;
+    const totalVidaPct = Math.max(0, ((this.maxTiros - this.contadorTirosSofridos) / this.maxTiros) * 100);
+    
+    const barraInterna = document.getElementById('barra-vida-interna');
+    const textoVida = document.getElementById('texto-vida');
+    
+    if (barraInterna && textoVida) {
+      barraInterna.style.width = `${totalVidaPct}%`;
+      textoVida.textContent = `${Math.floor(totalVidaPct)}%`;
+      
+      // Mudança dinâmica de cor dependendo da gravidade do dano
+      if (totalVidaPct > 50) {
+        barraInterna.style.background = '#4caf50'; // Verde
+      } else if (totalVidaPct > 25) {
+        barraInterna.style.background = '#ff9800'; // Laranja
+      } else {
+        barraInterna.style.background = '#f44336'; // Vermelho piscante/crítico
+      }
+    }
   }
 
   criarTiroInimigo(origemMundo, alvoMundo, idInimigoOrigem) { //
@@ -309,12 +336,18 @@ export class SistemaTiros {
       // bounding box para detectar acerto no jogador
       this._auxBoxTiro.setFromObject(tiro.objeto);
       if (this._auxBoxTiro.intersectsBox(boxJogador) && !isinvencivel) {
-        // incrementa o contador visivel e remove o tiro
+        if (this.jogoTerminado) return; // ignora se o jogo já acabou
+
         this.contadorTirosSofridos += 1;
         this._atualizarHUD();
         this.cena.remove(tiro.objeto);
         this.tirosInimigos.splice(i, 1);
-        this.tocarSomAviaoAtingido(); // toca o som do avião atingido
+        this.tocarSomAviaoAtingido();
+
+        // Condição de derrota
+        if (this.contadorTirosSofridos >= this.maxTiros) {
+          this._mostrarTelaGameOver();
+        }
         continue;
       } else if (this._auxBoxTiro.intersectsBox(boxJogador) && isinvencivel) {
         // apenas remove o tiro sem incrementar o contador
@@ -340,5 +373,41 @@ export class SistemaTiros {
     const distanciaDaCamera = posicaoObjeto.distanceTo(this._auxPosicaoCamera);
 
     return distanciaDaCamera > DISTANCIA_MAXIMA_TIRO;
+  }
+
+  _mostrarTelaGameOver() {
+    this.jogoTerminado = true;
+    
+    const divOverlay = document.createElement('div');
+    divOverlay.id = 'tela-game-over';
+    divOverlay.style.position = 'fixed';
+    divOverlay.style.top = '0';
+    divOverlay.style.left = '0';
+    divOverlay.style.width = '100vw';
+    divOverlay.style.height = '100vh';
+    // Fundo vermelho translúcido conforme você planejou
+    divOverlay.style.backgroundColor = 'rgba(139, 0, 0, 0.75)'; 
+    divOverlay.style.display = 'flex';
+    divOverlay.style.flexDirection = 'column';
+    divOverlay.style.justifyContent = 'center';
+    divOverlay.style.alignItems = 'center';
+    divOverlay.style.zIndex = '10000';
+    divOverlay.style.fontFamily = 'Verdana, sans-serif';
+    divOverlay.style.color = '#ffffff';
+
+    divOverlay.innerHTML = `
+      <h1 style="font-size: 60px; margin-bottom: 10px; text-shadow: 0 0 20px #ff0000; letter-spacing: 3px;">FIM DE JOGO</h1>
+      <p style="font-size: 18px; margin-bottom: 40px; color: #ffcccc;">Seu avião foi abatido pelas forças inimigas.</p>
+      <button id="btn-reiniciar" style="padding: 15px 40px; font-size: 22px; font-weight: bold; background-color: #ffffff; color: #8b0000; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 0 15px rgba(255,255,255,0.4); transition: transform 0.2s;">
+        REINICIAR JOGO
+      </button>
+    `;
+
+    document.body.appendChild(divOverlay);
+
+    document.getElementById('btn-reiniciar').addEventListener('click', () => {
+      // Quando clica em reiniciar, limpa a UI e recarrega a página para voltar à tela inicial limpa
+      window.location.reload(); 
+    });
   }
 }

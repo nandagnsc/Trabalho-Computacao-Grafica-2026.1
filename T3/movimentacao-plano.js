@@ -460,6 +460,12 @@ const agua = criarAgua();
 
 function render() { 
     stats.update();
+    if (sistemaTiros.jogoTerminado) {
+        // Apenas renderize a cena estática atual sem mover a câmera ou os inimigos!
+        renderer.render(scene, camera);
+        return; 
+    }
+
     if (simulaPausada) { 
         renderer.render(scene, camera);
         requestAnimationFrame(render);

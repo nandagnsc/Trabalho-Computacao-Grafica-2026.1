@@ -51,8 +51,7 @@ const telaCarregamento = new TelaCarregamento(() => {
     retomarSimulacao();
 });
 
-const sistemaHP = new SistemaHealthPacks(scene, cameraBox);
-const invencibilidade = new SistemaInvencibilidade();
+
 // --- FIM DOS CÓdigOS NOVOS ---
 
 const stats = new Stats(); 
@@ -347,6 +346,10 @@ loader.load('./musicaFundo.mp4', (buffer) => {
     musicaFundo.setVolume(0.2); 
     musicaFundo.play(); 
 });
+
+const sistemaHP = new SistemaHealthPacks(scene, cameraBox, listener);
+const invencibilidade = new SistemaInvencibilidade();
+
 
 const sistemaInimigos = new SistemaInimigos(scene, cameraBox); 
 const sistemaTiros = new SistemaTiros(scene, camera, listener); 

@@ -557,23 +557,28 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('blur', () => sistemaTiros.definirDisparoContinuoAtivo(false)); 
 
 
-// --- 4. INTERFACE APENAS PARA MOBILE ---
+/// --- 4. INTERFACE APENAS PARA MOBILE ---
 function injetarInterfaceMobile() {
-    // A MÁGICA AGORA É NO CSS: Controla perfeitamente se mostra ou esconde
     const cssEstilo = document.createElement('style');
     cssEstilo.innerHTML = `
-        /* REGRA 1: No PC (telas grandes), os botões NÃO existem */
+        /* No PC, botões invisíveis */
         #controles-mobile {
             display: none !important;
         }
         
-        /* REGRA 2: No Celular (telas menores que 800px), os botões aparecem */
+        /* No Celular, mostra botões e ajusta o menu do FOG */
         @media (max-width: 800px) {
             #controles-mobile { display: flex !important; }
-            .dg.ac { transform: scale(1.4); transform-origin: top right; margin-top: 15px; }
+            
+            /* Joga o Fog para baixo e garante que ele fique por cima de tudo */
+            .dg.ac { 
+                transform: scale(1.3); 
+                transform-origin: top right; 
+                top: 110px !important; /* Desce para não bater na vida/velocidade */
+                z-index: 99999 !important; /* Força ficar na frente */
+            }
         }
 
-        /* Evita que o usuário selecione o texto do botão sem querer ao tocar */
         #controles-mobile button {
             user-select: none;
             -webkit-user-select: none;
@@ -581,17 +586,17 @@ function injetarInterfaceMobile() {
     `;
     document.head.appendChild(cssEstilo);
 
-    // Container dos botões
     const divBotoes = document.createElement('div');
-    divBotoes.id = 'controles-mobile'; // Dá um "nome" para o CSS poder esconder
+    divBotoes.id = 'controles-mobile'; 
     divBotoes.style.position = 'fixed';
     divBotoes.style.bottom = '20px';
     divBotoes.style.left = '50%';
     divBotoes.style.transform = 'translateX(-50%)';
     divBotoes.style.gap = '15px';
-    divBotoes.style.zIndex = '999'; 
+    divBotoes.style.zIndex = '9999'; 
 
-    function criarBotao(texto, teclaSimulada) {
+    // Função melhorada: executa diretamente a ação em vez de simular tecla
+    function criarBotao(texto, acaoDireta) {
         const btn = document.createElement('button');
         btn.innerText = texto;
         btn.style.padding = '12px 18px';
@@ -602,29 +607,31 @@ function injetarInterfaceMobile() {
         btn.style.border = '2px solid white';
         btn.style.borderRadius = '10px';
         
-        // Simula o seu teclado!
-        const dispararTecla = (e) => {
+        const dispararAcao = (e) => {
             e.preventDefault(); 
-            window.dispatchEvent(new KeyboardEvent('keydown', { key: teclaSimulada }));
+            acaoDireta(); // Executa o que o botão precisa fazer
         };
         
-        btn.addEventListener('touchstart', dispararTecla, { passive: false });
-        btn.addEventListener('mousedown', dispararTecla);
+        btn.addEventListener('touchstart', dispararAcao, { passive: false });
+        btn.addEventListener('mousedown', dispararAcao);
         return btn;
     }
 
-    const btnGod = criarBotao('🛡️ God', 'g');
-    const btnPause = criarBotao('⏸️ Pausa', 'Escape');
-    const btnVel = criarBotao('⏩ Vel.', '1');
+    // Cria os botões com chamadas diretas às funções reais do seu jogo!
+    const btnPause = criarBotao('⏸️ Pausa', () => {
+        if(simulaPausada) retomarSimulacao(); else pausarSimulacao();
+    });
 
-    // Botão de velocidade alterna entre 1, 2 e 3
-    const mudarVelocidade = (e) => {
-        e.preventDefault();
+    const btnVel = criarBotao('⏩ Vel.', () => {
         let proximaVel = modoVelocidade >= 3 ? 1 : modoVelocidade + 1;
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: proximaVel.toString() }));
-    };
-    btnVel.addEventListener('touchstart', mudarVelocidade, { passive: false });
-    btnVel.addEventListener('mousedown', mudarVelocidade);
+        aplicarModoVelocidade(proximaVel); // Muda a velocidade com 100% de certeza
+    });
+
+    const btnGod = criarBotao('🛡️ God', () => {
+        // Dispara o evento de teclado forçado para o sistema de invencibilidade ler
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', bubbles: true }));
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'G', bubbles: true }));
+    });
 
     divBotoes.appendChild(btnPause);
     divBotoes.appendChild(btnVel);
@@ -632,7 +639,7 @@ function injetarInterfaceMobile() {
     document.body.appendChild(divBotoes);
 }
 injetarInterfaceMobile();
-// ===================================================================================================
+// =====================================================================================================================================
 
 
 const infoBox = new SecondaryBox(""); 
@@ -642,6 +649,10 @@ controls.add("Pressione ESC para pausar, clique para voltar.");
 controls.add("Teclas 1, 2 e 3 para mudar a velocidade do jogo."); 
 controls.add("Tecla S para pausar/retomar a música de fundo."); 
 controls.show();
+
+if (window.innerWidth > 800) { 
+    controls.show();
+}
 
 const gui = new GUI();
 gui.add(scene.fog, 'far', 300, 750).name("Neblina (Fog)");

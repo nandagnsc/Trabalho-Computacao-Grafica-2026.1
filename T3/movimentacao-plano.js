@@ -403,6 +403,7 @@ function aplicarModoVelocidade(modo) {
 }
 aplicarModoVelocidade(modoVelocidade);
 
+/*
 window.addEventListener('mousemove', (event) => {
     if (simulaPausada) return; 
     renderer.domElement.style.cursor = 'none';
@@ -412,6 +413,28 @@ window.addEventListener('mousemove', (event) => {
     mouse.x = THREE.MathUtils.clamp(mouse.x, -0.80, 0.80);
     mouse.y = THREE.MathUtils.clamp(mouse.y, -0.80, 0.80);
 });
+
+
+// Adiciona suporte para mover a mira com o dedo na tela
+window.addEventListener('touchmove', function(event) {
+    // Evita que a página role para baixo (scroll) enquanto o jogador arrasta o dedo
+    event.preventDefault(); 
+    
+    // Pega a posição do primeiro dedo que encostou na tela
+    let toque = event.touches[0]; 
+    
+    // Converte a posição do dedo para as coordenadas do Raycaster (entre -1 e 1)
+    mouse.x = (toque.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(toque.clientY / window.innerHeight) * 2 + 1;
+}, { passive: false }); // Esse { passive: false } é importante para o preventDefault funcionar
+
+
+// Se você atira clicando na tela, adicione isso:
+window.addEventListener('touchstart', function(event) {
+    // Chame a sua função de atirar ou executar ação aqui
+    // Exemplo: sistemaTiros.atirar();
+}, false);
+
 
 function pausarSimulacao() {
     simulaPausada = true;  
@@ -446,6 +469,171 @@ window.addEventListener('mouseup', (evento) => {
     sistemaTiros.definirDisparoContinuoAtivo(false); 
 });
 window.addEventListener('blur', () => sistemaTiros.definirDisparoContinuoAtivo(false)); 
+
+*/
+
+// ==========================================================
+// CONTROLES HÍBRIDOS (PC + MOBILE JUNTOS)
+// ==========================================================
+
+// --- 1. CONTROLES DE PC (MOUSE) ---
+window.addEventListener('mousemove', (event) => {
+    if (simulaPausada) return; 
+    renderer.domElement.style.cursor = 'none';
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1; 
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; 
+    mouse.x = THREE.MathUtils.clamp(mouse.x, -0.80, 0.80);
+    mouse.y = THREE.MathUtils.clamp(mouse.y, -0.80, 0.80);
+});
+
+renderer.domElement.addEventListener('click', () => retomarSimulacao());
+renderer.domElement.addEventListener('mousedown', (evento) => {
+    if (evento.button !== 0) return; // Só funciona o clique esquerdo
+    retomarSimulacao(); 
+    sistemaTiros.definirDisparoContinuoAtivo(true); 
+});
+window.addEventListener('mouseup', (evento) => {
+    if (evento.button !== 0) return; 
+    sistemaTiros.definirDisparoContinuoAtivo(false); 
+});
+
+
+// --- 2. CONTROLES DE MOBILE (TOUCH) ---
+window.addEventListener('touchstart', function(event) {
+    // Se tocou num botão virtual ou menu, não move a mira nem atira
+    if (event.target.tagName === 'BUTTON' || event.target.tagName === 'INPUT') return;
+
+    let toque = event.touches[0];
+    mouse.x = (toque.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(toque.clientY / window.innerHeight) * 2 + 1;
+    mouse.x = THREE.MathUtils.clamp(mouse.x, -0.80, 0.80);
+    mouse.y = THREE.MathUtils.clamp(mouse.y, -0.80, 0.80);
+    
+    retomarSimulacao();
+    sistemaTiros.definirDisparoContinuoAtivo(true); // Começa a dar tiro!
+}, { passive: false });
+
+window.addEventListener('touchmove', function(event) {
+    if (event.target.tagName === 'BUTTON' || event.target.tagName === 'INPUT') return;
+    event.preventDefault(); // Evita rolar a página web
+    
+    let toque = event.touches[0];
+    mouse.x = (toque.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(toque.clientY / window.innerHeight) * 2 + 1;
+    mouse.x = THREE.MathUtils.clamp(mouse.x, -0.80, 0.80);
+    mouse.y = THREE.MathUtils.clamp(mouse.y, -0.80, 0.80);
+}, { passive: false });
+
+window.addEventListener('touchend', function(event) {
+    sistemaTiros.definirDisparoContinuoAtivo(false); // Para de atirar ao soltar
+}, false);
+
+
+// --- 3. TECLADO E PAUSA (AMBOS) ---
+function pausarSimulacao() {
+    simulaPausada = true;  
+    sistemaTiros.definirDisparoContinuoAtivo(false); 
+    renderer.domElement.style.cursor = 'default'; 
+    mira.visible = false; 
+}
+
+function retomarSimulacao() {
+    simulaPausada = false; 
+    renderer.domElement.style.cursor = 'none'; 
+    mira.visible = true; 
+}
+
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+        if(simulaPausada) retomarSimulacao(); else pausarSimulacao();
+    }
+    if (['1', '2', '3'].includes(event.key)) aplicarModoVelocidade(Number(event.key)); 
+    if(event.key.toLowerCase() === 's'){
+        if(musicaFundo.isPlaying) musicaFundo.pause();
+        else musicaFundo.play();
+    }
+});
+
+window.addEventListener('blur', () => sistemaTiros.definirDisparoContinuoAtivo(false)); 
+
+
+// --- 4. INTERFACE APENAS PARA MOBILE ---
+function injetarInterfaceMobile() {
+    // A MÁGICA AGORA É NO CSS: Controla perfeitamente se mostra ou esconde
+    const cssEstilo = document.createElement('style');
+    cssEstilo.innerHTML = `
+        /* REGRA 1: No PC (telas grandes), os botões NÃO existem */
+        #controles-mobile {
+            display: none !important;
+        }
+        
+        /* REGRA 2: No Celular (telas menores que 800px), os botões aparecem */
+        @media (max-width: 800px) {
+            #controles-mobile { display: flex !important; }
+            .dg.ac { transform: scale(1.4); transform-origin: top right; margin-top: 15px; }
+        }
+
+        /* Evita que o usuário selecione o texto do botão sem querer ao tocar */
+        #controles-mobile button {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+    `;
+    document.head.appendChild(cssEstilo);
+
+    // Container dos botões
+    const divBotoes = document.createElement('div');
+    divBotoes.id = 'controles-mobile'; // Dá um "nome" para o CSS poder esconder
+    divBotoes.style.position = 'fixed';
+    divBotoes.style.bottom = '20px';
+    divBotoes.style.left = '50%';
+    divBotoes.style.transform = 'translateX(-50%)';
+    divBotoes.style.gap = '15px';
+    divBotoes.style.zIndex = '999'; 
+
+    function criarBotao(texto, teclaSimulada) {
+        const btn = document.createElement('button');
+        btn.innerText = texto;
+        btn.style.padding = '12px 18px';
+        btn.style.fontSize = '14px';
+        btn.style.fontWeight = 'bold';
+        btn.style.color = 'white';
+        btn.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        btn.style.border = '2px solid white';
+        btn.style.borderRadius = '10px';
+        
+        // Simula o seu teclado!
+        const dispararTecla = (e) => {
+            e.preventDefault(); 
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: teclaSimulada }));
+        };
+        
+        btn.addEventListener('touchstart', dispararTecla, { passive: false });
+        btn.addEventListener('mousedown', dispararTecla);
+        return btn;
+    }
+
+    const btnGod = criarBotao('🛡️ God', 'g');
+    const btnPause = criarBotao('⏸️ Pausa', 'Escape');
+    const btnVel = criarBotao('⏩ Vel.', '1');
+
+    // Botão de velocidade alterna entre 1, 2 e 3
+    const mudarVelocidade = (e) => {
+        e.preventDefault();
+        let proximaVel = modoVelocidade >= 3 ? 1 : modoVelocidade + 1;
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: proximaVel.toString() }));
+    };
+    btnVel.addEventListener('touchstart', mudarVelocidade, { passive: false });
+    btnVel.addEventListener('mousedown', mudarVelocidade);
+
+    divBotoes.appendChild(btnPause);
+    divBotoes.appendChild(btnVel);
+    divBotoes.appendChild(btnGod);
+    document.body.appendChild(divBotoes);
+}
+injetarInterfaceMobile();
+// ===================================================================================================
+
 
 const infoBox = new SecondaryBox(""); 
 const controls = new InfoBox();
@@ -598,7 +786,7 @@ function render() {
     agua.position.z = cameraBox.position.z - 250;
 
     listaArvores.forEach(a => { 
-        a.position.y = getAltura(a.position.x, a.position.z) - 115.5; 
+        a.position.y = getAltura(a.position.x, a.position.z) - 116; 
         
         // Se a árvore ficou para trás da câmera...
         if (a.position.z > cameraBox.position.z + 50) { 

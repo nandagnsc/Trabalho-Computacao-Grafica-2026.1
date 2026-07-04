@@ -35,16 +35,19 @@ const cameraBox = new THREE.Object3D();
 cameraBox.add(camera); 
 scene.add(cameraBox); 
 
+
 // --- INÍCIO DOS CÓdigOS NOVOS ---
 let simulaPausada = true; 
 
 const telaCarregamento = new TelaCarregamento(() => {
     simulaPausada = false;
     retomarSimulacao();
+    
+    // O Gatilho Mestre: Avisa o CSS que a tela de loading sumiu e o jogo começou!
+    document.body.classList.add('carregamento-concluido');
 });
-
-
 // --- FIM DOS CÓdigOS NOVOS ---
+
 
 const stats = new Stats(); 
 const container = document.getElementById('container');
@@ -557,26 +560,33 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('blur', () => sistemaTiros.definirDisparoContinuoAtivo(false)); 
 
 
-/// --- 4. INTERFACE APENAS PARA MOBILE ---
+// --- 4. INTERFACE APENAS PARA MOBILE ---
 function injetarInterfaceMobile() {
     const cssEstilo = document.createElement('style');
     cssEstilo.innerHTML = `
-        /* No PC, botões invisíveis */
-        #controles-mobile {
+        /* 1. ESCONDE TUDO DURANTE O CARREGAMENTO */
+        #controles-mobile, .dg.ac, .caixa-do-professor {
             display: none !important;
         }
-        
-        /* No Celular, mostra botões e ajusta o menu do FOG */
+
+        /* 2. O QUE ACONTECE QUANDO O JOGO CARREGA NO PC (> 800px) */
+        @media (min-width: 801px) {
+            body.carregamento-concluido .dg.ac { display: block !important; }
+            body.carregamento-concluido .caixa-do-professor { display: block !important; }
+            /* Os botões mobile continuam escondidos no PC */
+        }
+
+        /* 3. O QUE ACONTECE QUANDO O JOGO CARREGA NO CELULAR (<= 800px) */
         @media (max-width: 800px) {
-            #controles-mobile { display: flex !important; }
-            
-            /* Joga o Fog para baixo e garante que ele fique por cima de tudo */
-            .dg.ac { 
+            body.carregamento-concluido #controles-mobile { display: flex !important; }
+            body.carregamento-concluido .dg.ac { 
+                display: block !important;
                 transform: scale(1.3); 
                 transform-origin: top right; 
-                top: 110px !important; /* Desce para não bater na vida/velocidade */
-                z-index: 99999 !important; /* Força ficar na frente */
+                top: 110px !important; 
+                z-index: 99999 !important; 
             }
+            /* A caixa de texto do professor continua escondida no celular */
         }
 
         #controles-mobile button {
@@ -595,7 +605,6 @@ function injetarInterfaceMobile() {
     divBotoes.style.gap = '15px';
     divBotoes.style.zIndex = '9999'; 
 
-    // Função melhorada: executa diretamente a ação em vez de simular tecla
     function criarBotao(texto, acaoDireta) {
         const btn = document.createElement('button');
         btn.innerText = texto;
@@ -603,13 +612,13 @@ function injetarInterfaceMobile() {
         btn.style.fontSize = '14px';
         btn.style.fontWeight = 'bold';
         btn.style.color = 'white';
-        btn.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        btn.style.backgroundColor = 'rgba(248, 144, 226, 0.5)';
         btn.style.border = '2px solid white';
         btn.style.borderRadius = '10px';
         
         const dispararAcao = (e) => {
             e.preventDefault(); 
-            acaoDireta(); // Executa o que o botão precisa fazer
+            acaoDireta(); 
         };
         
         btn.addEventListener('touchstart', dispararAcao, { passive: false });
@@ -617,20 +626,19 @@ function injetarInterfaceMobile() {
         return btn;
     }
 
-    // Cria os botões com chamadas diretas às funções reais do seu jogo!
     const btnPause = criarBotao('⏸️ Pausa', () => {
         if(simulaPausada) retomarSimulacao(); else pausarSimulacao();
     });
 
     const btnVel = criarBotao('⏩ Vel.', () => {
         let proximaVel = modoVelocidade >= 3 ? 1 : modoVelocidade + 1;
-        aplicarModoVelocidade(proximaVel); // Muda a velocidade com 100% de certeza
+        aplicarModoVelocidade(proximaVel); 
     });
 
     const btnGod = criarBotao('🛡️ God', () => {
-        // Dispara o evento de teclado forçado para o sistema de invencibilidade ler
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', bubbles: true }));
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'G', bubbles: true }));
+        if (typeof invencibilidade !== 'undefined') {
+            invencibilidade.alternarModo();
+        }
     });
 
     divBotoes.appendChild(btnPause);
@@ -639,8 +647,7 @@ function injetarInterfaceMobile() {
     document.body.appendChild(divBotoes);
 }
 injetarInterfaceMobile();
-// =====================================================================================================================================
-
+// ==========================================================
 
 const infoBox = new SecondaryBox(""); 
 const controls = new InfoBox();
@@ -650,12 +657,23 @@ controls.add("Teclas 1, 2 e 3 para mudar a velocidade do jogo.");
 controls.add("Tecla S para pausar/retomar a música de fundo."); 
 controls.show();
 
-if (window.innerWidth > 800) { 
-    controls.show();
-}
+document.querySelectorAll('div').forEach(div => {
+    if (div.innerText.includes('Controle com o mouse') || div.innerText.includes('Teclas 1, 2 e 3')) {
+        div.classList.add('caixa-do-professor');
+    }
+});
+
+/*
+if (window.innerWidth <= 800) {
+    controls.hide(); 
+    const divBotoes = document.getElementById('controles-mobile');
+    if (divBotoes) divBotoes.style.display = 'flex'; 
+} // Se for celular, mostra os botões virtuais e esconde o texto de instruções
+*/
 
 const gui = new GUI();
 gui.add(scene.fog, 'far', 300, 750).name("Neblina (Fog)");
+gui.domElement.parentElement.style.display = 'none';
 
 //AGUA:
 function criarAgua() {

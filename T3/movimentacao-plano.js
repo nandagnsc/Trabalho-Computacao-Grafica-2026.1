@@ -21,14 +21,6 @@ const renderer = initRenderer();
 const corHorizonte = new THREE.Color("pink"); // Cor rosa para o horizonte
 renderer.setClearColor(corHorizonte); 
 
-// === REMOVIDO: Carregamento do céu azul anterior ===
-/*
-const carregadorCeu = new THREE.TextureLoader();
-const texturaCeu = carregadorCeu.load('../assets/textures/ceu.jpg'); 
-texturaCeu.mapping = THREE.EquirectangularReflectionMapping;
-texturaCeu.colorSpace = THREE.SRGBColorSpace; 
-scene.background = texturaCeu; 
-*/
 
 // Mantém a neblina rosa para casar com o céu
 scene.fog = new THREE.Fog(corHorizonte, 0.1, 600); 
@@ -243,39 +235,6 @@ for (let i = 0; i < 3; i++) {
     planosTerreno.push(plano);
 }
 
-/*
-let listaArvores = []; 
-for(let i = 0; i < 80; i++) {
-    let dados = criaCenario(0, 0, 0, 'verao');
-    let arvore = dados.ambiente.children[1];
-    if(arvore) {
-        scene.add(arvore);
-        arvore.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-          }
-        });
-
-        // === NOVA LÓGICA DE POSICIONAMENTO ===
-        let posX, posZ, alturaLocal;
-        
-        // Sorteia posições repetidamente ATÉ achar um local com altura maior que 45 (terra/grama)
-        do {
-            posX = (Math.random() - 0.5) * 800;
-            posZ = -Math.random() * 800;
-            alturaLocal = getAltura(posX, posZ);
-        } while (alturaLocal < 45); // Se for menor que 45 (água ou areia), ele sorteia de novo!
-
-        arvore.position.x = posX;
-        arvore.position.z = posZ;
-        arvore.position.y = alturaLocal - 80;
-        // =====================================
-
-        listaArvores.push(arvore);
-    }
-}
-*/
 
 // ==========================================================
 // CRIAÇÃO E TEXTURIZAÇÃO DAS ÁRVORES

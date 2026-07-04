@@ -61,8 +61,9 @@ export class SistemaInvencibilidade {
 export class TelaCarregamento {
     constructor(onStartCallback) {
         this.onStartCallback = onStartCallback;
-        // Agora nós pegamos carona no carregador oficial do Three.js!
-        this.manager = THREE.DefaultLoadingManager; 
+        this.manager = THREE.DefaultLoadingManager;  
+        // 1. ADICIONE ESTA LINHA: Guarda o maior progresso alcançado
+        this.progressoMaximo = 0; 
         this.elementoTela = this._criarTelaHtml();
         this._configurarEventos();
     }
@@ -123,15 +124,24 @@ export class TelaCarregamento {
         const barra = this.elementoTela.querySelector('#barra-progresso');
         const botao = this.elementoTela.querySelector('#btn-start');
 
-        // Durante o download de qualquer asset (GLTF, texturas, sons)
+        // Durante o download de qualquer asset
         this.manager.onProgress = (url, itemsLoaded, itemsTotal) => {
             const porcentagem = Math.floor((itemsLoaded / itemsTotal) * 100);
-            texto.textContent = `${porcentagem}%`;
-            barra.style.width = `${porcentagem}%`;
+            
+            // 2. MODIFIQUE AQUI: Só atualiza se a nova porcentagem for maior
+            if (porcentagem > this.progressoMaximo) {
+                this.progressoMaximo = porcentagem; // Atualiza o recorde
+                
+                // Limita a 100% para evitar bugs visuais de arredondamento
+                if (this.progressoMaximo > 100) this.progressoMaximo = 100;
+                
+                texto.textContent = `${this.progressoMaximo}%`;
+                barra.style.width = `${this.progressoMaximo}%`;
+            }
         };
 
         // Quando 100% dos arquivos estiverem prontos
-        this.manager.onLoad = () => {
+      this.manager.onLoad = () => {
             texto.textContent = "100%";
             barra.style.width = "100%";
             barra.style.background = "#4caf50"; // Barra fica verde
@@ -163,7 +173,7 @@ export class SistemaHealthPacks {
         this.distanciaColeta = 6.0;   // Distância em que é coletado
 
         this._criarTexturaEMaterial();
-        this.uiDebugDistancia = this._criarUIDebug();
+        //this.uiDebugDistancia = this._criarUIDebug();
 
         // Carrega o som do Health Pack
         this.somHealthPack = new THREE.Audio(listener);
@@ -203,23 +213,7 @@ export class SistemaHealthPacks {
         });
     }
 
-    _criarUIDebug() {
-        // Caixa de texto exigida para o professor avaliar as distâncias
-        const div = document.createElement('div');
-        div.style.position = 'fixed';
-        div.style.top = '120px';
-        div.style.left = '20px';
-        div.style.padding = '10px';
-        div.style.background = 'rgba(0, 0, 0, 0.7)';
-        div.style.border = '1px dashed #ff99cc';
-        div.style.color = '#ff99cc';
-        div.style.fontFamily = 'monospace';
-        div.style.fontSize = '12px';
-        div.style.zIndex = '100';
-        div.innerHTML = `[TESTE DE HA]<br>Raio Atrator: ${this.distanciaAtracao}m<br>Raio Coleta: ${this.distanciaColeta}m<br>Distância do HA: N/A`;
-        document.body.appendChild(div);
-        return div;
-    }
+
 
     registrarAbate() {
         this.contadorAbates++;
@@ -291,12 +285,6 @@ export class SistemaHealthPacks {
             }
         }
 
-        // Atualiza a interface de teste do professor
-        if (this.healthPacks.length > 0) {
-            this.uiDebugDistancia.innerHTML = `[TESTE DE HA]<br>Raio Atrator: ${this.distanciaAtracao}m<br>Raio Coleta: ${this.distanciaColeta}m<br>Distância do HA: ${menorDistancia.toFixed(1)}m`;
-        } else {
-            this.uiDebugDistancia.innerHTML = `[TESTE DE HA]<br>Raio Atrator: ${this.distanciaAtracao}m<br>Raio Coleta: ${this.distanciaColeta}m<br>Nenhum HA no mapa`;
-        }
     }
 }
 

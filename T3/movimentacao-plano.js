@@ -505,11 +505,10 @@ function injetarInterfaceMobile() {
     document.head.appendChild(cssEstilo);
 
     const divBotoes = document.createElement('div');
-    // Substitua o posicionamento do container mobile para o topo:
     divBotoes.id = 'controles-mobile';
     divBotoes.style.position = 'fixed';
-    divBotoes.style.top = '75px'; // <-- MOVIDO PARA O TOPO
-    divBotoes.style.right = '10px'; // Lado direito superior
+    divBotoes.style.top = '75px';
+    divBotoes.style.right = '10px';
     divBotoes.style.gap = '10px';
     divBotoes.style.zIndex = '9999'; 
 
@@ -534,7 +533,6 @@ function injetarInterfaceMobile() {
         return btn;
     }
 
-    // Crie os botões com as funções que o professor pediu:
     const btnFullscreen = criarBotao('📺 Full', () => {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(err => console.log(err));

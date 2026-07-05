@@ -16,13 +16,11 @@ const clock = new THREE.Clock();
 const renderer = initRenderer(); 
 
 // ==========================================
-// CÉU E NEBLINA (SKYBOX) - MUDADO PARA ROSA
+// CÉU E NEBLINA
 // ==========================================
 const corHorizonte = new THREE.Color("pink"); // Cor rosa para o horizonte
 renderer.setClearColor(corHorizonte); 
 
-
-// Mantém a neblina rosa para casar com o céu
 scene.fog = new THREE.Fog(corHorizonte, 0.1, 600); 
 // ==========================================
 
@@ -36,18 +34,15 @@ cameraBox.add(camera);
 scene.add(cameraBox); 
 
 
-// --- INÍCIO DOS CÓdigOS NOVOS ---
 let simulaPausada = true; 
 
 const telaCarregamento = new TelaCarregamento(() => {
     simulaPausada = false;
     retomarSimulacao();
+    musicaFundo.play();
     
-    // O Gatilho Mestre: Avisa o CSS que a tela de loading sumiu e o jogo começou!
     document.body.classList.add('carregamento-concluido');
 });
-// --- FIM DOS CÓdigOS NOVOS ---
-
 
 const stats = new Stats(); 
 const container = document.getElementById('container');
@@ -92,7 +87,7 @@ const Perlin = new function() {
 function getAltura(x, z) { 
     let nx = x * 0.005, nz = z * 0.005;  
     let h = (Perlin.noise(nx, nz) * 70) + (Perlin.noise(nx*3, nz*3) * 35) + (Perlin.noise(nx*8, nz*8) * 15); 
-    return h + 60; // Gera alturas de 30 até ~86
+    return h + 60;
 }
 
 // ==========================================================
@@ -102,16 +97,14 @@ function getAltura(x, z) {
 const largura = 1000, profundidade = 1000, divisoes = 150; 
 const textureLoader = new THREE.TextureLoader(); 
 
-// Caminhos corretos acessando a pasta assets!
 const texturaGrama = textureLoader.load("../T3/grama.jpg");
 const texturaRocha = textureLoader.load("../T3/rocha.jpg"); 
 const texturaAreia = textureLoader.load("../T3/areia.jpg");
 const texturaNeve = textureLoader.load("../T3/neve.jpg"); 
 
-const texturaTronco = textureLoader.load("../assets/textures/wood.jpg");
-const texturaFolhas = textureLoader.load("../assets/textures/folha3.jpg"); 
+const texturaTronco = textureLoader.load("../T3/wood.jpg");
+const texturaFolhas = textureLoader.load("../T3/folha3.jpg"); 
 
-// Repetir a textura das folhas para não ficar esticada
 texturaFolhas.wrapS = texturaFolhas.wrapT = THREE.RepeatWrapping;
 texturaFolhas.repeat.set(2, 2);
  
@@ -252,7 +245,6 @@ for(let i = 0; i < desiredTreeCount; i++) {
     if(arvore) {
         let posX, posZ, alturaLocal;
         
-        // Sorteia posições repetidamente ATÉ achar um local em terra firme (grama)
         do {
             posX = (Math.random() - 0.5) * 800;
             posZ = -Math.random() * 800;
@@ -261,23 +253,18 @@ for(let i = 0; i < desiredTreeCount; i++) {
 
         scene.add(arvore);
 
-        // A MÁGICA DAS TEXTURAS ACONTECE AQUI:
         arvore.traverse((child) => {
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
             
-            // Verifica qual é o formato (geometria) do pedaço da árvore
             if (child.geometry && child.geometry.type === 'CylinderGeometry') {
-                // Se for um Cilindro, é o tronco! Aplicamos a madeira.
                 child.material = new THREE.MeshStandardMaterial({ 
                     map: texturaTronco 
                 });
             } else {
-                // Se for outra coisa (Cone, Esfera), é a copa! Aplicamos as folhas.
                 child.material = new THREE.MeshStandardMaterial({ 
                     map: texturaFolhas,
-                    // Misturamos um tom de verde caso a imagem da textura seja muito clara
                     color: new THREE.Color(0x3a5f2b) 
                 });
             }
@@ -306,7 +293,6 @@ loader.load('./musicaFundo.mp4', (buffer) => {
     musicaFundo.setBuffer(buffer);
     musicaFundo.setLoop(true); 
     musicaFundo.setVolume(0.2); 
-    musicaFundo.play(); 
 });
 
 const sistemaHP = new SistemaHealthPacks(scene, cameraBox, listener);
@@ -406,75 +392,6 @@ function aplicarModoVelocidade(modo) {
 }
 aplicarModoVelocidade(modoVelocidade);
 
-/*
-window.addEventListener('mousemove', (event) => {
-    if (simulaPausada) return; 
-    renderer.domElement.style.cursor = 'none';
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1; 
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; 
-    
-    mouse.x = THREE.MathUtils.clamp(mouse.x, -0.80, 0.80);
-    mouse.y = THREE.MathUtils.clamp(mouse.y, -0.80, 0.80);
-});
-
-
-// Adiciona suporte para mover a mira com o dedo na tela
-window.addEventListener('touchmove', function(event) {
-    // Evita que a página role para baixo (scroll) enquanto o jogador arrasta o dedo
-    event.preventDefault(); 
-    
-    // Pega a posição do primeiro dedo que encostou na tela
-    let toque = event.touches[0]; 
-    
-    // Converte a posição do dedo para as coordenadas do Raycaster (entre -1 e 1)
-    mouse.x = (toque.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(toque.clientY / window.innerHeight) * 2 + 1;
-}, { passive: false }); // Esse { passive: false } é importante para o preventDefault funcionar
-
-
-// Se você atira clicando na tela, adicione isso:
-window.addEventListener('touchstart', function(event) {
-    // Chame a sua função de atirar ou executar ação aqui
-    // Exemplo: sistemaTiros.atirar();
-}, false);
-
-
-function pausarSimulacao() {
-    simulaPausada = true;  
-    sistemaTiros.definirDisparoContinuoAtivo(false); 
-    renderer.domElement.style.cursor = 'default'; 
-    mira.visible = false; 
-}
-
-function retomarSimulacao() {
-    simulaPausada = false; 
-    renderer.domElement.style.cursor = 'none'; 
-    mira.visible = true; 
-}
-
-window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') pausarSimulacao(); 
-    if (['1', '2', '3'].includes(event.key)) aplicarModoVelocidade(Number(event.key)); 
-    if(event.key.toLowerCase() === 's'){
-        if(musicaFundo.isPlaying) musicaFundo.pause();
-        else musicaFundo.play();
-    }
-});
-
-renderer.domElement.addEventListener('click', () => retomarSimulacao());
-renderer.domElement.addEventListener('mousedown', (evento) => {
-    if (evento.button !== 0) return; 
-    retomarSimulacao(); 
-    sistemaTiros.definirDisparoContinuoAtivo(true); 
-});
-window.addEventListener('mouseup', (evento) => {
-    if (evento.button !== 0) return; 
-    sistemaTiros.definirDisparoContinuoAtivo(false); 
-});
-window.addEventListener('blur', () => sistemaTiros.definirDisparoContinuoAtivo(false)); 
-
-*/
-
 // ==========================================================
 // CONTROLES HÍBRIDOS (PC + MOBILE JUNTOS)
 // ==========================================================
@@ -491,7 +408,7 @@ window.addEventListener('mousemove', (event) => {
 
 renderer.domElement.addEventListener('click', () => retomarSimulacao());
 renderer.domElement.addEventListener('mousedown', (evento) => {
-    if (evento.button !== 0) return; // Só funciona o clique esquerdo
+    if (evento.button !== 0) return;
     retomarSimulacao(); 
     sistemaTiros.definirDisparoContinuoAtivo(true); 
 });
@@ -503,7 +420,6 @@ window.addEventListener('mouseup', (evento) => {
 
 // --- 2. CONTROLES DE MOBILE (TOUCH) ---
 window.addEventListener('touchstart', function(event) {
-    // Se tocou num botão virtual ou menu, não move a mira nem atira
     if (event.target.tagName === 'BUTTON' || event.target.tagName === 'INPUT') return;
 
     let toque = event.touches[0];
@@ -513,12 +429,12 @@ window.addEventListener('touchstart', function(event) {
     mouse.y = THREE.MathUtils.clamp(mouse.y, -0.80, 0.80);
     
     retomarSimulacao();
-    sistemaTiros.definirDisparoContinuoAtivo(true); // Começa a dar tiro!
+    sistemaTiros.definirDisparoContinuoAtivo(true);
 }, { passive: false });
 
 window.addEventListener('touchmove', function(event) {
     if (event.target.tagName === 'BUTTON' || event.target.tagName === 'INPUT') return;
-    event.preventDefault(); // Evita rolar a página web
+    event.preventDefault();
     
     let toque = event.touches[0];
     mouse.x = (toque.clientX / window.innerWidth) * 2 - 1;
@@ -528,7 +444,7 @@ window.addEventListener('touchmove', function(event) {
 }, { passive: false });
 
 window.addEventListener('touchend', function(event) {
-    sistemaTiros.definirDisparoContinuoAtivo(false); // Para de atirar ao soltar
+    sistemaTiros.definirDisparoContinuoAtivo(false);
 }, false);
 
 
@@ -579,14 +495,6 @@ function injetarInterfaceMobile() {
         /* 3. O QUE ACONTECE QUANDO O JOGO CARREGA NO CELULAR (<= 800px) */
         @media (max-width: 800px) {
             body.carregamento-concluido #controles-mobile { display: flex !important; }
-            body.carregamento-concluido .dg.ac { 
-                display: block !important;
-                transform: scale(1.3); 
-                transform-origin: top right; 
-                top: 110px !important; 
-                z-index: 99999 !important; 
-            }
-            /* A caixa de texto do professor continua escondida no celular */
         }
 
         #controles-mobile button {
@@ -597,12 +505,12 @@ function injetarInterfaceMobile() {
     document.head.appendChild(cssEstilo);
 
     const divBotoes = document.createElement('div');
-    divBotoes.id = 'controles-mobile'; 
+    // Substitua o posicionamento do container mobile para o topo:
+    divBotoes.id = 'controles-mobile';
     divBotoes.style.position = 'fixed';
-    divBotoes.style.bottom = '20px';
-    divBotoes.style.left = '50%';
-    divBotoes.style.transform = 'translateX(-50%)';
-    divBotoes.style.gap = '15px';
+    divBotoes.style.top = '75px'; // <-- MOVIDO PARA O TOPO
+    divBotoes.style.right = '10px'; // Lado direito superior
+    divBotoes.style.gap = '10px';
     divBotoes.style.zIndex = '9999'; 
 
     function criarBotao(texto, acaoDireta) {
@@ -626,9 +534,23 @@ function injetarInterfaceMobile() {
         return btn;
     }
 
-    const btnPause = criarBotao('⏸️ Pausa', () => {
-        if(simulaPausada) retomarSimulacao(); else pausarSimulacao();
+    // Crie os botões com as funções que o professor pediu:
+    const btnFullscreen = criarBotao('📺 Full', () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => console.log(err));
+        } else {
+            document.exitFullscreen();
+        }
     });
+
+    const btnMusica = criarBotao('🎵 Música', () => {
+        if (musicaFundo.isPlaying) musicaFundo.pause();
+        else musicaFundo.play();
+    });
+
+    // const btnPause = criarBotao('⏸️ Pausa', () => {
+    //     if(simulaPausada) retomarSimulacao(); else pausarSimulacao();
+    // });
 
     const btnVel = criarBotao('⏩ Vel.', () => {
         let proximaVel = modoVelocidade >= 3 ? 1 : modoVelocidade + 1;
@@ -641,7 +563,9 @@ function injetarInterfaceMobile() {
         }
     });
 
-    divBotoes.appendChild(btnPause);
+    divBotoes.appendChild(btnFullscreen);
+    divBotoes.appendChild(btnMusica);
+    // divBotoes.appendChild(btnPause);
     divBotoes.appendChild(btnVel);
     divBotoes.appendChild(btnGod);
     document.body.appendChild(divBotoes);
@@ -662,14 +586,6 @@ document.querySelectorAll('div').forEach(div => {
         div.classList.add('caixa-do-professor');
     }
 });
-
-/*
-if (window.innerWidth <= 800) {
-    controls.hide(); 
-    const divBotoes = document.getElementById('controles-mobile');
-    if (divBotoes) divBotoes.style.display = 'flex'; 
-} // Se for celular, mostra os botões virtuais e esconde o texto de instruções
-*/
 
 const gui = new GUI();
 gui.add(scene.fog, 'far', 300, 750).name("Neblina (Fog)");
@@ -692,7 +608,7 @@ function criarAgua() {
     });
 
     water.rotation.x = -Math.PI / 2;
-    water.position.y = -75; // Água nos vales
+    water.position.y = -75;
     scene.add(water);
 
     return water;
@@ -702,7 +618,6 @@ const agua = criarAgua();
 function render() { 
     stats.update();
     if (sistemaTiros.jogoTerminado) {
-        // Apenas renderize a cena estática atual sem mover a câmera ou os inimigos!
         renderer.render(scene, camera);
         return; 
     }
@@ -747,7 +662,7 @@ function render() {
     // Subtraímos 115 porque seus planos da esteira estão rebaixados em -115 na cena
     let alturaMontanhaAqui = getAltura(posicaoAviaoMundo.x, posicaoAviaoMundo.z) - 115;
     
-    let margemColisaoTerreno = 2.0; // Distância do "chassi" do avião
+    let margemColisaoTerreno = 2.0;
     
     if (posicaoAviaoMundo.y < alturaMontanhaAqui + margemColisaoTerreno) {
         // O avião tentou entrar na montanha!
@@ -755,35 +670,23 @@ function render() {
         let quantoPassou = (alturaMontanhaAqui + margemColisaoTerreno) - posicaoAviaoMundo.y;
         aviaoContainer.position.y += quantoPassou; 
         
-        // Atualiza a variável global novamente para os próximos testes
         aviaoContainer.getWorldPosition(posicaoAviaoMundo);
-        
-        // NOTA: Quando criarmos a barra de vida, você vai colocar o código de DANO aqui!
     }
 
     // 3. COLISÃO COM ÁRVORES:
     for (let i = 0; i < listaArvores.length; i++) {
         let arvore = listaArvores[i];
         
-        // Mede a distância horizontal (eixos X e Z) entre o avião e a árvore
         let distX = Math.abs(posicaoAviaoMundo.x - arvore.position.x);
         let distZ = Math.abs(posicaoAviaoMundo.z - arvore.position.z);
         
-        // Se estiver num raio de 4 unidades da árvore...
         if (distX < 4.0 && distZ < 4.0) {
-            
-            // Verifica se o avião está baixo o suficiente para bater na copa (árvore tem ~20 de altura)
             let alturaCopa = arvore.position.y + 20.0;
             if (posicaoAviaoMundo.y < alturaCopa) {
-                // O avião bateu na árvore!
-                // Rebate o avião um pouco para o lado/cima
                 aviaoContainer.position.y += 0.5;
                 aviaoContainer.position.x += (posicaoAviaoMundo.x > arvore.position.x ? 1.0 : -1.0);
                 
-                // Atualiza a variável global novamente
                 aviaoContainer.getWorldPosition(posicaoAviaoMundo);
-                
-                // NOTA: Aqui também entrará o dano da barra de vida depois!
             }
         }
     }
@@ -793,12 +696,9 @@ function render() {
 
     let alturaTerrenoNaCamera = getAltura(cameraBox.position.x, cameraBox.position.z) - 115;
     
-    // 2. Definimos uma margem de segurança (ex: 5 unidades) para manter a lente da câmera 
-    // sempre voando acima do relevo alto, impedindo o clipping visual (ver o lado oco)
     let alturaMinimaCamera = alturaTerrenoNaCamera + 5.0;
     
     if (cameraBox.position.y < alturaMinimaCamera) {
-        // Se a câmera tentar afundar na montanha, nós cravamos ela na altura segura por cima do morro
         cameraBox.position.y = alturaMinimaCamera;
     }    
     
@@ -817,17 +717,15 @@ function render() {
     listaArvores.forEach(a => { 
         a.position.y = getAltura(a.position.x, a.position.z) - 116; 
         
-        // Se a árvore ficou para trás da câmera...
         if (a.position.z > cameraBox.position.z + 50) { 
             
             let novoX, novoZ, novaAltura;
             
-            // ...Sorteia um novo lugar lá na frente, mas SÓ em terra firme!
             do {
                 novoX = cameraBox.position.x + (Math.random() - 0.5) * 800; 
                 novoZ = cameraBox.position.z - 600 - Math.random() * 200; 
                 novaAltura = getAltura(novoX, novoZ);
-            } while (novaAltura < 45); // Garante que a reciclagem também fuja da água
+            } while (novaAltura < 45);
 
             a.position.x = novoX;
             a.position.z = novoZ;

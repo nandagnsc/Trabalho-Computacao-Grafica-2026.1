@@ -495,6 +495,7 @@ function injetarInterfaceMobile() {
         /* 3. O QUE ACONTECE QUANDO O JOGO CARREGA NO CELULAR (<= 800px) */
         @media (max-width: 800px) {
             body.carregamento-concluido #controles-mobile { display: flex !important; }
+            body.carregamento-concluido #indicador-velocidade { display: none !important; }
         }
 
         #controles-mobile button {
@@ -508,7 +509,8 @@ function injetarInterfaceMobile() {
     divBotoes.id = 'controles-mobile';
     divBotoes.style.position = 'fixed';
     divBotoes.style.top = '75px';
-    divBotoes.style.right = '10px';
+    divBotoes.style.left = '50%';
+    divBotoes.style.transform = 'translateX(-50%)';
     divBotoes.style.gap = '10px';
     divBotoes.style.zIndex = '9999'; 
 
@@ -577,6 +579,7 @@ controls.add("Controle com o mouse");
 controls.add("Pressione ESC para pausar, clique para voltar."); 
 controls.add("Teclas 1, 2 e 3 para mudar a velocidade do jogo."); 
 controls.add("Tecla S para pausar/retomar a música de fundo."); 
+controls.add("Tecla G para ativar/desativar o modo invencível.");
 controls.show();
 
 document.querySelectorAll('div').forEach(div => {

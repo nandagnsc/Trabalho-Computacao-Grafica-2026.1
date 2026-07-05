@@ -89,7 +89,7 @@ export class TelaCarregamento {
         div.style.fontFamily = 'Verdana, sans-serif';
 
         div.innerHTML = `
-            <h1 style="font-size: 50px; color: #ff99cc; text-shadow: 0 0 20px #ff99cc; margin-bottom: 20px; text-transform: uppercase;">Shooter Girls</h1>
+            <h1 style="font-size: 50px; color: #ff99cc; text-align: center; text-shadow: 0 0 20px #ff99cc; margin-bottom: 20px; text-transform: uppercase;">Shooter Girls</h1>
             <h2 style="font-size: 20px; font-weight: normal; margin-bottom: 30px;">Quase pronto para o jogo...</h2>
             
             <div style="width: 50vw; max-width: 500px; height: 30px; background: rgba(255,255,255,0.2); border-radius: 15px; border: 2px solid #fff; position: relative; overflow: hidden;">

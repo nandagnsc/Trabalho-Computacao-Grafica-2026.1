@@ -386,7 +386,6 @@ export class SistemaTiros {
     divOverlay.style.left = '0';
     divOverlay.style.width = '100vw';
     divOverlay.style.height = '100vh';
-    // Fundo vermelho translúcido conforme você planejou
     divOverlay.style.backgroundColor = 'rgba(139, 0, 0, 0.75)'; 
     divOverlay.style.display = 'flex';
     divOverlay.style.flexDirection = 'column';
@@ -397,7 +396,7 @@ export class SistemaTiros {
     divOverlay.style.color = '#ffffff';
 
     divOverlay.innerHTML = `
-      <h1 style="font-size: 60px; margin-bottom: 10px; text-shadow: 0 0 20px #ff0000; letter-spacing: 3px;">FIM DE JOGO</h1>
+      <h1 style="font-size: 60px; margin-bottom: 10px; text-align: center; text-shadow: 0 0 20px #ff0000; letter-spacing: 3px;">FIM DE JOGO</h1>
       <p style="font-size: 18px; margin-bottom: 40px; color: #ffcccc;">Seu avião foi abatido pelas forças inimigas.</p>
       <button id="btn-reiniciar" style="padding: 15px 40px; font-size: 22px; font-weight: bold; background-color: #ffffff; color: #8b0000; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 0 15px rgba(255,255,255,0.4); transition: transform 0.2s;">
         REINICIAR JOGO
@@ -407,7 +406,6 @@ export class SistemaTiros {
     document.body.appendChild(divOverlay);
 
     document.getElementById('btn-reiniciar').addEventListener('click', () => {
-      // Quando clica em reiniciar, limpa a UI e recarrega a página para voltar à tela inicial limpa
       window.location.reload(); 
     });
   }
